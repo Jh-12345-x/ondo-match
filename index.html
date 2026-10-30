@@ -107,9 +107,12 @@ textarea{width:100%;font:inherit;font-size:14px;border:1px solid var(--line);bor
 <h1>우리반 온도 맞춤</h1>
 <p class="sub" id="conn">서버에 연결하는 중…</p>
 </div>
+<div class="row" style="align-items:center">
 <div class="season" role="group" aria-label="계절">
 <button id="sSummer" aria-pressed="true">여름</button>
 <button id="sWinter" aria-pressed="false">겨울</button>
+</div>
+<button class="btn ghost" id="logOpen">변경 기록</button>
 </div>
 </header>
 
@@ -172,13 +175,6 @@ textarea{width:100%;font:inherit;font-size:14px;border:1px solid var(--line);bor
 </div>
 </section>
 
-<section>
-<div>
-<h2>변경 기록</h2>
-<p class="sub">누가 언제 자리를 바꿨는지 남아요. 최근 30개까지 보여요.</p>
-</div>
-<ul class="log" id="log"></ul>
-</section>
 
 <section>
 <div>
@@ -192,7 +188,18 @@ textarea{width:100%;font:inherit;font-size:14px;border:1px solid var(--line);bor
 <p class="note">온도는 선생님이 정한 범위 안에서만 바뀌어요. 한쪽 의견이 3표 이상 많을 때만 1도씩 조절해요.</p>
 </section>
 </div>
-<p class="note" style="text-align:center;margin-top:16px">버전 1.6.0</p>
+<p class="note" style="text-align:center;margin-top:16px">버전 1.6.1</p>
+
+<div class="ob" id="logSheet" hidden>
+<div class="ob-head" style="flex-direction:row;justify-content:space-between;align-items:center">
+<h1>변경 기록</h1>
+<button class="btn ghost" id="logClose">닫기</button>
+</div>
+<div class="ob-card">
+<p class="sub" style="margin:0">누가 언제 자리를 바꿨는지 남아요. 최근 30개까지 보여요.</p>
+<ul class="log" id="log"></ul>
+</div>
+</div>
 
 <div class="ob" id="ob" hidden>
 <div class="ob-head">
@@ -448,7 +455,7 @@ if(ready){ wasReg=!!myName; try{ myName?localStorage.setItem("ondo-reg","1"):loc
 const show=!obDismissed&&!editing&&(ready?!myName:!wasReg);
 const wasHidden=$("ob").hidden;
 $("ob").hidden=!show;
-document.documentElement.style.overflow=show?"hidden":"";
+document.documentElement.style.overflow=(show||!$("logSheet").hidden)?"hidden":"";
 if(!show) return;
 if(wasHidden&&!$("ob1").hidden) setTimeout(()=>$("obName").focus(),50);
 if($("ob2").hidden) return;
@@ -547,7 +554,15 @@ obSeat=+b.dataset.i; $("obErr2").textContent=""; render();
 $("obBack").onclick=()=>{obSeat=null;obGo(1);render();setTimeout(()=>$("obName").focus(),50);};
 $("obStart").onclick=()=>{if(obSeat!==null){$("obStart").disabled=true;register(obName,obSeat);}};
 $("obLater").onclick=()=>{obDismissed=true;showOb();render();};
-document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("ob").hidden){obDismissed=true;showOb();render();}});
+document.addEventListener("keydown",e=>{
+if(e.key!=="Escape") return;
+if(!$("logSheet").hidden){closeLog();return;}
+if(!$("ob").hidden){obDismissed=true;showOb();render();}
+});
+// 변경 기록 화면
+function closeLog(){$("logSheet").hidden=true;showOb();$("logOpen").focus();}
+$("logOpen").onclick=()=>{$("logSheet").hidden=false;document.documentElement.style.overflow="hidden";$("logSheet").scrollTop=0;$("logClose").focus();};
+$("logClose").onclick=closeLog;
 showOb(); // 페이지 열리자마자 화면 1
 </script>
 </body>
