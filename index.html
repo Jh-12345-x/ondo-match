@@ -69,6 +69,7 @@ padding:calc(32px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-r
 #obName:focus-visible{outline:2px solid var(--cold);outline-offset:1px}
 .ob-map{display:flex;flex-direction:column;gap:6px}
 .ob .err{color:var(--hot);font-size:13px;margin:0;min-height:1em}
+#adminPw{font:inherit;padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg);width:180px;max-width:100%}
 .seat.taken{opacity:.4;cursor:not-allowed}
 .seat.chosen{border-color:var(--ok);background:var(--ok-soft)!important}
 .seat input{width:100%;min-width:0;font:inherit;font-size:12px;text-align:center;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg);padding:4px 1px}
@@ -191,9 +192,13 @@ textarea{width:100%;font:inherit;font-size:14px;border:1px solid var(--line);bor
 </div>
 <div class="row" style="justify-content:center;align-items:center;margin-top:16px">
 <span class="note" id="adminInfo"></span>
-<button class="btn ghost" id="adminBtn" style="padding:4px 10px">관리자 로그인</button>
+<button class="btn ghost" id="adminBtn" style="padding:4px 10px">관리자 모드</button>
 </div>
-<p class="note" style="text-align:center;margin-top:8px">버전 1.9.0</p>
+<form class="row" id="adminForm" hidden style="justify-content:center;margin-top:8px">
+<input id="adminPw" type="password" placeholder="관리자 비밀번호" autocomplete="current-password" aria-label="관리자 비밀번호">
+<button class="btn" type="submit">확인</button>
+</form>
+<p class="note" style="text-align:center;margin-top:8px">버전 2.0.0</p>
 
 <div class="ob" id="logSheet" hidden>
 <div class="ob-head" style="flex-direction:row;justify-content:space-between;align-items:center">
@@ -232,8 +237,8 @@ textarea{width:100%;font:inherit;font-size:14px;border:1px solid var(--line);bor
 <script type="module">
 // ===== Firebase 연결 =====
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, doc, onSnapshot, setDoc, updateDoc, runTransaction, FieldPath } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, linkWithPopup, signInWithPopup, signInWithCredential, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, doc, onSnapshot, setDoc, updateDoc, deleteDoc, runTransaction, FieldPath } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 const firebaseConfig = {
 apiKey: "AIzaSyCtEvmB2jk1uGsd8G-poe8bM4QRUZqBevg",
@@ -318,40 +323,31 @@ tx.update(ref,upd);
 }
 // 자리 i와 j를 바꿈. 화면을 보는 사이 다른 친구가 바꿨으면 취소
 // ===== 관리자 =====
-// 관리자: 구글로 로그인한 사람 중 admins 목록에 있는 사람. 관리자가 아무도 없으면 처음 로그인한 사람이 관리자가 됨
-const provider=new GoogleAuthProvider();
-const isAdmin=()=>!!(state&&uid&&(state.admins||[]).includes(uid));
-const googleEmail=()=>{const u=auth.currentUser;const g=u&&u.providerData.find(p=>p.providerId==="google.com");return g?g.email:"";};
-function needAdmin(){ if(isAdmin()) return false; toast("관리자만 할 수 있어요. 맨 아래에서 관리자 로그인을 해주세요"); return true; }
-async function adminLogin(){
-try{
-try{ await linkWithPopup(auth.currentUser,provider); } // 지금 익명 계정에 구글을 연결 (번호가 그대로라 학생 등록도 유지)
-catch(e){
-if(e.code==="auth/credential-already-in-use"||e.code==="auth/email-already-in-use"){
-const cred=GoogleAuthProvider.credentialFromError(e);
-if(cred) await signInWithCredential(auth,cred); else await signInWithPopup(auth,provider);
-} else throw e;
+// 관리자 비밀번호는 코드에 없고 Firebase 서버(secrets/admin)에만 있음.
+// 비밀번호를 넣으면 admins/내번호 문서를 만들고, 서버 보안 규칙이 비밀번호가 맞을 때만 만들어줌
+let adminFlag=false, adminUnsub=null;
+const isAdmin=()=>adminFlag;
+function needAdmin(){ if(isAdmin()) return false; toast("관리자만 할 수 있어요. 맨 아래 관리자 모드에서 비밀번호를 넣어주세요"); return true; }
+function watchAdmin(){
+if(adminUnsub){adminUnsub();adminUnsub=null;}
+adminFlag=false;
+if(!uid) return;
+adminUnsub=onSnapshot(doc(db,"admins",uid),snap=>{adminFlag=snap.exists();render();},()=>{adminFlag=false;render();});
 }
-await auth.currentUser.getIdToken(true);
-uid=auth.currentUser.uid; myName=claimedName();
-await runTransaction(db, async tx=>{
-const s=(await tx.get(ref)).data();
-if(!(s.admins&&s.admins.length)) tx.update(ref,{admins:[uid],log:addLog(s,"관리자로 등록됨",googleEmail()||"관리자")});
-});
-render();
-toast(isAdmin()?"관리자로 로그인했어요":"로그인했어요");
+async function adminLogin(pw){
+if(!uid){toast("아직 연결 중이에요. 잠깐 뒤에 다시 해주세요");return;}
+try{
+await setDoc(doc(db,"admins",uid),{pw,at:Date.now()});
+$("adminForm").hidden=true; $("adminPw").value="";
+updateDoc(ref,{log:addLog(state,"관리자 모드를 켬",myName||"관리자")}).catch(()=>{});
+toast("관리자 모드를 켰어요");
 }catch(e){
 console.error(e);
-const m={"auth/unauthorized-domain":"Firebase 승인된 도메인에 github.io 주소를 추가해 주세요",
-"auth/operation-not-allowed":"Firebase에서 Google 로그인을 켜 주세요",
-"auth/popup-blocked":"팝업이 막혔어요. 팝업을 허용하고 다시 눌러주세요",
-"auth/popup-closed-by-user":"로그인 창을 닫았어요",
-"auth/cancelled-popup-request":"로그인 창을 닫았어요"};
-toast(m[e.code]||"로그인이 안 됐어요. 크롬이나 사파리에서 다시 해보세요 (카톡 안 브라우저는 안 돼요)");
+toast(e.code==="permission-denied"?"비밀번호가 틀렸어요":"관리자 모드를 못 켰어요. 다시 해보세요");
 }
 }
 async function adminLogout(){
-try{ await signOut(auth); await signInAnonymously(auth); toast("로그아웃했어요"); }catch(e){fail(e);}
+try{ await deleteDoc(doc(db,"admins",uid)); toast("관리자 모드를 껐어요"); }catch(e){fail(e);}
 }
 
 async function swapSeats(i,j,fromVote){
@@ -457,9 +453,8 @@ const admin=isAdmin();
 $("editBtn").hidden=editing||!admin; $("bulk").hidden=!editing;
 $("sSummer").disabled=!admin; $("sWinter").disabled=!admin;
 $("adminOnly").hidden=admin;
-const ge=googleEmail();
-$("adminInfo").textContent=admin?`관리자로 로그인됨 (${ge})`:ge?`관리자가 아닌 계정이에요 (${ge})`:"";
-$("adminBtn").textContent=ge?"로그아웃":"관리자 로그인";
+$("adminInfo").textContent=admin?"관리자 모드 켜짐":"";
+$("adminBtn").textContent=admin?"관리자 모드 끄기":"관리자 모드";
 $("mapSub").textContent=editing?"자리 칸에 이름을 입력하고 완료를 누르세요."
 :picking?(pickA===null?"바꿀 자리 2개 중 첫 번째를 누르세요.":`${state.names[pickA]||"빈 자리"}와 바꿀 자리를 누르세요.`)
 :"색칠된 자리는 냉난방 바람이 세게 오는 자리예요. 나머지는 거의 비슷해요.";
@@ -594,13 +589,18 @@ $("conn").textContent="서버에 연결하지 못했어요. Firestore 보안 규
 });
 setInterval(()=>{if(state&&state.slot!==slotKey()) resetIfNewHour(false); else render();},30000);
 
-onAuthStateChanged(auth, u=>{ uid=u?u.uid:null; myName=claimedName(); render(); });
+onAuthStateChanged(auth, u=>{ uid=u?u.uid:null; myName=claimedName(); watchAdmin(); render(); });
 signInAnonymously(auth).catch(e=>{
 console.error(e);
 $("conn").textContent="로그인이 안 돼요. Firebase에서 익명 로그인을 켰는지 확인해 주세요.";
 });
 $("clearClaims").onclick=()=>clearClaims();
-$("adminBtn").onclick=()=>{googleEmail()?adminLogout():adminLogin();};
+$("adminBtn").onclick=()=>{
+if(isAdmin()){adminLogout();return;}
+$("adminForm").hidden=!$("adminForm").hidden;
+if(!$("adminForm").hidden) $("adminPw").focus();
+};
+$("adminForm").addEventListener("submit",e=>{e.preventDefault();const pw=$("adminPw").value;if(pw)adminLogin(pw);});
 
 $("obNext").onclick=()=>{
 const n=$("obName").value.trim();
