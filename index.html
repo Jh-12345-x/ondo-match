@@ -126,7 +126,7 @@ textarea{width:100%;font:inherit;font-size:14px;border:1px solid var(--line);bor
 <div class="head">
 <div>
 <h2>교실 자리 지도</h2>
-<p class="sub" id="mapSub">내 자리를 눌러 선택하세요. 색은 에어컨·창문 위치로 본 대략적인 구역이에요.</p>
+<p class="sub" id="mapSub">색칠된 자리는 냉난방 바람이 세게 오는 자리예요.</p>
 </div>
 <button class="btn ghost" id="editBtn">원래 자리 설정</button>
 </div>
@@ -152,8 +152,8 @@ textarea{width:100%;font:inherit;font-size:14px;border:1px solid var(--line);bor
 <div class="side" id="rightSide">창문</div>
 </div>
 <div class="legend">
-<span><i class="sw" style="background:var(--cold-soft)"></i>시원한 자리</span>
-<span><i class="sw" style="background:var(--hot-soft)"></i>따뜻한 자리</span>
+<span><i class="sw" id="lgSw" style="background:var(--cold-soft)"></i><span id="lgText">에어컨 바람이 센 자리</span></span>
+<span><i class="sw" style="background:var(--bg);border:1px solid var(--line)"></i>보통 자리</span>
 </div>
 <p class="me-line" id="meLine"></p>
 <div class="feel">
@@ -170,6 +170,7 @@ textarea{width:100%;font:inherit;font-size:14px;border:1px solid var(--line);bor
 </div>
 <div id="pairs" style="display:flex;flex-direction:column;gap:8px"></div>
 <p class="note" id="swapStatus"></p>
+<p class="note" id="adminOnly" hidden>자리 교환, 원래 자리 설정, 온도 반영은 관리자만 할 수 있어요.</p>
 <div class="row">
 <button class="btn ghost" id="resetBtn">원래 자리로</button>
 </div>
@@ -188,7 +189,11 @@ textarea{width:100%;font:inherit;font-size:14px;border:1px solid var(--line);bor
 <p class="note">온도는 선생님이 정한 범위 안에서만 바뀌어요. 한쪽 의견이 3표 이상 많을 때만 1도씩 조절해요.</p>
 </section>
 </div>
-<p class="note" style="text-align:center;margin-top:16px">버전 1.7.2</p>
+<div class="row" style="justify-content:center;align-items:center;margin-top:16px">
+<span class="note" id="adminInfo"></span>
+<button class="btn ghost" id="adminBtn" style="padding:4px 10px">관리자 로그인</button>
+</div>
+<p class="note" style="text-align:center;margin-top:8px">버전 1.9.0</p>
 
 <div class="ob" id="logSheet" hidden>
 <div class="ob-head" style="flex-direction:row;justify-content:space-between;align-items:center">
@@ -228,7 +233,7 @@ textarea{width:100%;font:inherit;font-size:14px;border:1px solid var(--line);bor
 // ===== Firebase 연결 =====
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, doc, onSnapshot, setDoc, updateDoc, runTransaction, FieldPath } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, linkWithPopup, signInWithPopup, signInWithCredential, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 const firebaseConfig = {
 apiKey: "AIzaSyCtEvmB2jk1uGsd8G-poe8bM4QRUZqBevg",
@@ -252,8 +257,8 @@ const ROWS=4, COLS=6, N=ROWS*COLS;
 // 처음엔 빈 교실. 친구들이 들어와서 각자 이름과 자리를 등록함
 const DEFAULT_NAMES=Array(N).fill("");
 const SEASON={
-summer:{temp:26,min:24,max:28,ac:"❄ 에어컨", win:[0,0,0,0,0.4,1.1], acEffect:-1, center:-1.3},
-winter:{temp:20,min:18,max:22,ac:"♨ 난방", win:[0,0,0,0,-0.5,-1.3], acEffect:1, center:1.1}
+summer:{temp:26,min:24,max:28,ac:"❄ 에어컨", strong:-1.5, strongLabel:"에어컨 바람이 센 자리"},
+winter:{temp:20,min:18,max:22,ac:"♨ 난방", strong:1.5, strongLabel:"히터 바람이 센 자리"}
 };
 // 매시 정각마다 바뀌는 시간 칸. 이게 바뀌면 원래 자리로 돌아감
 const slotKey=()=>{const d=new Date();return d.toDateString()+" "+d.getHours();};
@@ -277,10 +282,11 @@ const fail=e=>{console.error(e);toast("저장이 안 됐어요. 인터넷 연결
 const feelTxt={cold:"추워요",hot:"더워요",ok:"괜찮아요"};
 const esc=s=>String(s).replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
 
+// 냉난방 바람이 세게 오는 자리 (교실에서 직접 확인함)
+// 2·3번째 줄에서 왼쪽 분단의 오른쪽 칸, 오른쪽 분단의 왼쪽 칸. 나머지 자리는 거의 차이 없음
+const STRONG=[7,10,13,16];
 function seatTemp(i){
-const S=SEASON[state.season], r=Math.floor(i/COLS), c=i%COLS;
-const dx=(c-2.5)/2.5, dy=(r-1.5)/1.5, d=Math.min(1,Math.hypot(dx,dy)/1.2);
-return state.setTemp + S.center*(1-d) + (S.acEffect<0?0.6:-0.6)*d + S.win[c];
+return state.setTemp + (STRONG.includes(i)?SEASON[state.season].strong:0);
 }
 function zoneBg(i){const d=seatTemp(i)-state.setTemp;return d<=-0.6?"var(--cold-soft)":d>=0.6?"var(--hot-soft)":"var(--bg)";}
 const feelOf=n=>n?(state.feels||{})[n]||null:null;
@@ -311,7 +317,45 @@ tx.update(ref,upd);
 }catch(e){fail(e);}
 }
 // 자리 i와 j를 바꿈. 화면을 보는 사이 다른 친구가 바꿨으면 취소
+// ===== 관리자 =====
+// 관리자: 구글로 로그인한 사람 중 admins 목록에 있는 사람. 관리자가 아무도 없으면 처음 로그인한 사람이 관리자가 됨
+const provider=new GoogleAuthProvider();
+const isAdmin=()=>!!(state&&uid&&(state.admins||[]).includes(uid));
+const googleEmail=()=>{const u=auth.currentUser;const g=u&&u.providerData.find(p=>p.providerId==="google.com");return g?g.email:"";};
+function needAdmin(){ if(isAdmin()) return false; toast("관리자만 할 수 있어요. 맨 아래에서 관리자 로그인을 해주세요"); return true; }
+async function adminLogin(){
+try{
+try{ await linkWithPopup(auth.currentUser,provider); } // 지금 익명 계정에 구글을 연결 (번호가 그대로라 학생 등록도 유지)
+catch(e){
+if(e.code==="auth/credential-already-in-use"||e.code==="auth/email-already-in-use"){
+const cred=GoogleAuthProvider.credentialFromError(e);
+if(cred) await signInWithCredential(auth,cred); else await signInWithPopup(auth,provider);
+} else throw e;
+}
+await auth.currentUser.getIdToken(true);
+uid=auth.currentUser.uid; myName=claimedName();
+await runTransaction(db, async tx=>{
+const s=(await tx.get(ref)).data();
+if(!(s.admins&&s.admins.length)) tx.update(ref,{admins:[uid],log:addLog(s,"관리자로 등록됨",googleEmail()||"관리자")});
+});
+render();
+toast(isAdmin()?"관리자로 로그인했어요":"로그인했어요");
+}catch(e){
+console.error(e);
+const m={"auth/unauthorized-domain":"Firebase 승인된 도메인에 github.io 주소를 추가해 주세요",
+"auth/operation-not-allowed":"Firebase에서 Google 로그인을 켜 주세요",
+"auth/popup-blocked":"팝업이 막혔어요. 팝업을 허용하고 다시 눌러주세요",
+"auth/popup-closed-by-user":"로그인 창을 닫았어요",
+"auth/cancelled-popup-request":"로그인 창을 닫았어요"};
+toast(m[e.code]||"로그인이 안 됐어요. 크롬이나 사파리에서 다시 해보세요 (카톡 안 브라우저는 안 돼요)");
+}
+}
+async function adminLogout(){
+try{ await signOut(auth); await signInAnonymously(auth); toast("로그아웃했어요"); }catch(e){fail(e);}
+}
+
 async function swapSeats(i,j,fromVote){
+if(needAdmin()) return;
 const a=state.names[i], b=state.names[j];
 try{
 await runTransaction(db, async tx=>{
@@ -358,6 +402,7 @@ obSeat=null; render();
 }
 }
 async function clearClaims(){
+if(needAdmin()) return;
 try{await updateDoc(ref,{claims:{},feels:{},log:addLog(state,"모든 등록을 풀었음")});toast("등록을 모두 풀었어요. 각자 다시 등록하면 돼요");}catch(e){fail(e);}
 }
 async function setFeel(f){
@@ -365,13 +410,16 @@ if(!myName||(state.claims||{})[myName]!==uid) return;
 try{await updateDoc(ref,new FieldPath("feels",myName),f);}catch(e){fail(e);}
 }
 async function applyTemp(next){
+if(needAdmin()) return;
 try{await updateDoc(ref,{setTemp:next,feels:{},log:addLog(state,`설정 온도 ${state.setTemp}° → ${next}°`)});toast(`설정 온도를 ${next}°로 바꿨어요. 다시 눌러주세요`);}catch(e){fail(e);}
 }
 async function setSeason(s){
 if(state.season===s) return;
+if(needAdmin()) return;
 try{await updateDoc(ref,{season:s,setTemp:SEASON[s].temp,feels:{},log:addLog(state,`계절을 ${s==="summer"?"여름":"겨울"}로 바꿈`)});}catch(e){fail(e);}
 }
 async function saveBase(names){
+if(needAdmin()) return;
 try{await updateDoc(ref,{base:names,names:names,feels:{},slot:slotKey(),log:addLog(state,"원래 자리 배치를 바꿈")});toast("원래 자리를 저장했어요");}catch(e){fail(e);}
 }
 
@@ -405,10 +453,18 @@ $("range").textContent=`조절 가능 범위 ${S.min}°~${S.max}°`;
 $("acTag").textContent=S.ac;
 $("sSummer").setAttribute("aria-pressed",state.season==="summer");
 $("sWinter").setAttribute("aria-pressed",state.season==="winter");
-$("editBtn").hidden=editing; $("bulk").hidden=!editing;
+const admin=isAdmin();
+$("editBtn").hidden=editing||!admin; $("bulk").hidden=!editing;
+$("sSummer").disabled=!admin; $("sWinter").disabled=!admin;
+$("adminOnly").hidden=admin;
+const ge=googleEmail();
+$("adminInfo").textContent=admin?`관리자로 로그인됨 (${ge})`:ge?`관리자가 아닌 계정이에요 (${ge})`:"";
+$("adminBtn").textContent=ge?"로그아웃":"관리자 로그인";
 $("mapSub").textContent=editing?"자리 칸에 이름을 입력하고 완료를 누르세요."
 :picking?(pickA===null?"바꿀 자리 2개 중 첫 번째를 누르세요.":`${state.names[pickA]||"빈 자리"}와 바꿀 자리를 누르세요.`)
-:"처음엔 내 이름 자리를 눌러 등록하세요. 색은 에어컨·창문 위치로 본 대략적인 구역이에요.";
+:"색칠된 자리는 냉난방 바람이 세게 오는 자리예요. 나머지는 거의 비슷해요.";
+$("lgText").textContent=S.strongLabel;
+$("lgSw").style.background=state.season==="summer"?"var(--cold-soft)":"var(--hot-soft)";
 
 // 이름 입력 중에는 칸을 다시 그리지 않음 (입력하던 글자가 날아가지 않게)
 if(!(editing && $("nm0"))){
@@ -420,7 +476,7 @@ if(editing) for(let i=0;i<N;i++) $("nm"+i).oninput=e=>{draft[i]=e.target.value.t
 
 const nh=(new Date().getHours()+1)%24;
 $("swapStatus").textContent=swapped()?`자리를 바꾼 상태예요. ${nh}시 정각에 원래 자리로 돌아가요.`:"지금은 원래 자리예요. 바꾼 자리는 이번 시간에만 유지돼요.";
-$("resetBtn").disabled=editing||picking||!swapped();
+$("resetBtn").disabled=editing||picking||!swapped()||!admin;
 const log=state.log||[];
 $("log").innerHTML=log.length?log.map(l=>`<li><time>${fmtTime(l.at)}</time><span><b>${esc(l.by)}</b> · ${esc(l.text)}</span></li>`).join("")
 :`<li><span>아직 기록이 없어요.</span></li>`;
@@ -433,7 +489,7 @@ $("meLine").innerHTML=mine?`나: <b>${esc(myName)}</b> · 지금 상태: ${mf?fe
 ["fCold","fOk","fHot"].forEach(id=>$(id).disabled=editing||!mine);
 
 const p=pairs();
-$("pairs").innerHTML=p.length?p.map((x,k)=>`<div class="pair"><p>🥶 <b>${esc(x.c.name)}</b> ↔ 🥵 <b>${esc(x.h.name)}</b><br><span class="note">${x.small?"둘이 비슷한 구역이라 효과가 작을 수 있어요":`${esc(x.c.name)}는 더 따뜻한 자리로, ${esc(x.h.name)}는 더 시원한 자리로`}</span></p><button class="btn" data-k="${k}">교환하기</button></div>`).join("")
+$("pairs").innerHTML=p.length?p.map((x,k)=>`<div class="pair"><p>🥶 <b>${esc(x.c.name)}</b> ↔ 🥵 <b>${esc(x.h.name)}</b><br><span class="note">${x.small?"둘이 비슷한 구역이라 효과가 작을 수 있어요":`${esc(x.c.name)}는 더 따뜻한 자리로, ${esc(x.h.name)}는 더 시원한 자리로`}</span></p><button class="btn" data-k="${k}" ${admin?"":"disabled"}>교환하기</button></div>`).join("")
 :`<p class="empty-msg">추워요와 더워요를 누른 친구가 둘 다 있어야 추천이 떠요.</p>`;
 document.querySelectorAll("#pairs .btn").forEach(b=>b.onclick=()=>{const x=p[+b.dataset.k];swapSeats(x.c.i,x.h.i,true);});
 
@@ -442,7 +498,7 @@ const c=fs.filter(f=>f==="cold").length,o=fs.filter(f=>f==="ok").length,h=fs.fil
 $("barC").style.width=c/tot*100+"%";$("barO").style.width=o/tot*100+"%";$("barH").style.width=h/tot*100+"%";
 $("cC").textContent=`추워요 ${c}`;$("cO").textContent=`괜찮아요 ${o}`;$("cH").textContent=`더워요 ${h}`;
 const r=decide(c,h);
-$("result").innerHTML=r.msg; $("apply").disabled=editing||r.next===state.setTemp; $("apply").dataset.next=r.next;
+$("result").innerHTML=r.msg; $("apply").disabled=editing||r.next===state.setTemp||!admin; $("apply").dataset.next=r.next;
 showOb();
 }
 
@@ -510,8 +566,8 @@ if(e.target.id==="openOb") openReg();
 $("fCold").onclick=()=>setFeel("cold");$("fOk").onclick=()=>setFeel("ok");$("fHot").onclick=()=>setFeel("hot");
 $("apply").onclick=()=>applyTemp(+$("apply").dataset.next);
 $("sSummer").onclick=()=>setSeason("summer");$("sWinter").onclick=()=>setSeason("winter");
-$("resetBtn").onclick=()=>{resetIfNewHour(true);toast("원래 자리로 돌려놨어요");};
-$("editBtn").onclick=()=>{editing=true;draft=state.base.slice();$("bulkText").value=draft.join(", ");$("seats").innerHTML="";render();};
+$("resetBtn").onclick=()=>{if(needAdmin())return;resetIfNewHour(true);toast("원래 자리로 돌려놨어요");};
+$("editBtn").onclick=()=>{if(needAdmin())return;editing=true;draft=state.base.slice();$("bulkText").value=draft.join(", ");$("seats").innerHTML="";render();};
 $("editDone").onclick=()=>{editing=false;saveBase(draft.slice());$("seats").innerHTML="";render();};
 $("bulkApply").onclick=()=>{
 const arr=$("bulkText").value.split(/[,\n]/).map(s=>s.trim());
@@ -544,6 +600,7 @@ console.error(e);
 $("conn").textContent="로그인이 안 돼요. Firebase에서 익명 로그인을 켰는지 확인해 주세요.";
 });
 $("clearClaims").onclick=()=>clearClaims();
+$("adminBtn").onclick=()=>{googleEmail()?adminLogout():adminLogin();};
 
 $("obNext").onclick=()=>{
 const n=$("obName").value.trim();
