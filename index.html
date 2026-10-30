@@ -170,7 +170,6 @@ textarea{width:100%;font:inherit;font-size:14px;border:1px solid var(--line);bor
 <div id="pairs" style="display:flex;flex-direction:column;gap:8px"></div>
 <p class="note" id="swapStatus"></p>
 <div class="row">
-<button class="btn ghost" id="manualBtn">직접 자리 바꾸기</button>
 <button class="btn ghost" id="resetBtn">원래 자리로</button>
 </div>
 </section>
@@ -188,7 +187,7 @@ textarea{width:100%;font:inherit;font-size:14px;border:1px solid var(--line);bor
 <p class="note">온도는 선생님이 정한 범위 안에서만 바뀌어요. 한쪽 의견이 3표 이상 많을 때만 1도씩 조절해요.</p>
 </section>
 </div>
-<p class="note" style="text-align:center;margin-top:16px">버전 1.6.1</p>
+<p class="note" style="text-align:center;margin-top:16px">버전 1.7.1</p>
 
 <div class="ob" id="logSheet" hidden>
 <div class="ob-head" style="flex-direction:row;justify-content:space-between;align-items:center">
@@ -264,7 +263,7 @@ let state=null, editing=false, draft=[], picking=false, pickA=null;
 // claims: {이름: uid} → 한 이름은 한 폰만, 한 폰은 한 이름만 등록 가능
 let myName="";
 let obName="", obSeat=null, obDismissed=false; // 등록 화면 상태
-let wasReg=false; try{wasReg=localStorage.getItem("ondo-reg")==="1";}catch(e){} // 이 폰이 전에 등록했는지 기억
+let prefilled=false; // 전에 등록한 이름을 화면 1에 한 번 채워넣었는지
 function claimedName(){
 if(!state||!uid) return "";
 const c=state.claims||{};
@@ -332,18 +331,24 @@ try{
 await runTransaction(db, async tx=>{
 const s=(await tx.get(ref)).data();
 const c={...(s.claims||{})};
-if(Object.values(c).includes(uid)) throw new Error("이 폰은 이미 등록돼 있어요");
-if(c[name]) throw new Error("방금 다른 폰이 같은 이름으로 등록했어요. 이름 뒤에 숫자를 붙여주세요");
+const old=Object.keys(c).find(k=>c[k]===uid)||""; // 이 폰이 전에 등록한 이름
+if(c[name]&&c[name]!==uid) throw new Error("방금 다른 폰이 같은 이름으로 등록했어요. 이름 뒤에 숫자를 붙여주세요");
 const b=s.base[i]||"";
-if(b&&b!==name) throw new Error("방금 다른 친구가 그 자리를 골랐어요. 다른 자리를 골라주세요");
-const base=s.base.slice(), names=s.names.slice();
+if(b&&b!==name&&b!==old) throw new Error("방금 다른 친구가 그 자리를 골랐어요. 다른 자리를 골라주세요");
+const base=s.base.slice(), names=s.names.slice(), feels={...(s.feels||{})};
+// 한 폰에 한 명: 예전 등록은 지우고 새로 등록
+if(old){
+delete c[old]; delete feels[old];
+base.forEach((n,k)=>{if(n===old) base[k]="";});
+names.forEach((n,k)=>{if(n===old) names[k]="";});
+}
 // 같은 이름이 다른 자리에 미리 들어가 있었으면 그 자리는 비움
 base.forEach((n,k)=>{if(n===name&&k!==i){base[k]="";if(names[k]===name)names[k]="";}});
-if(names[i]===s.base[i]) names[i]=name; // 이번 시간에 자리를 안 바꾼 칸이면 바로 반영
+if(names[i]===s.base[i]||names[i]==="") names[i]=name; // 이번 시간에 자리를 안 바꾼 칸이면 바로 반영
 base[i]=name; c[name]=uid;
-tx.update(ref,{base,names,claims:c,log:addLog(s,"이름과 자리를 등록함",name)});
+tx.update(ref,{base,names,feels,claims:c,log:addLog(s,old?`다시 등록함 (${old}, ${s.base.indexOf(old)+1}번 자리 → ${name}, ${i+1}번 자리)`:"이름과 자리를 등록함",name)});
 });
-obName=""; obSeat=null; obGo(1);
+obSeat=null; obDismissed=true; obGo(1);
 toast(`${name}님 등록 완료! 이제 이 폰으로 투표할 수 있어요`);
 }catch(e){
 console.error(e);
@@ -415,21 +420,19 @@ if(editing) for(let i=0;i<N;i++) $("nm"+i).oninput=e=>{draft[i]=e.target.value.t
 const nh=(new Date().getHours()+1)%24;
 $("swapStatus").textContent=swapped()?`자리를 바꾼 상태예요. ${nh}시 정각에 원래 자리로 돌아가요.`:"지금은 원래 자리예요. 바꾼 자리는 이번 시간에만 유지돼요.";
 $("resetBtn").disabled=editing||picking||!swapped();
-$("manualBtn").textContent=picking?"바꾸기 취소":"직접 자리 바꾸기";
-$("manualBtn").disabled=editing;
 const log=state.log||[];
 $("log").innerHTML=log.length?log.map(l=>`<li><time>${fmtTime(l.at)}</time><span><b>${esc(l.by)}</b> · ${esc(l.text)}</span></li>`).join("")
 :`<li><span>아직 기록이 없어요.</span></li>`;
 
 const mine=myName&&state.names.includes(myName);
 const mf=feelOf(myName);
-$("meLine").innerHTML=mine?`나: <b>${esc(myName)}</b> (등록됨) · 지금 상태: ${mf?feelTxt[mf]:"아직 안 누름"}`
+$("meLine").innerHTML=mine?`나: <b>${esc(myName)}</b> · 지금 상태: ${mf?feelTxt[mf]:"아직 안 누름"} <button class="btn ghost" id="openOb" style="margin-left:6px;padding:4px 10px">다시 등록</button>`
 :`아직 등록 안 한 폰이에요. 둘러보기만 할 수 있어요. <button class="btn" id="openOb" style="margin-left:6px">이름·자리 등록하기</button>`;
 ["fCold","fOk","fHot"].forEach(id=>$(id).disabled=editing||!mine);
 
 const p=pairs();
 $("pairs").innerHTML=p.length?p.map((x,k)=>`<div class="pair"><p>🥶 <b>${esc(x.c.name)}</b> ↔ 🥵 <b>${esc(x.h.name)}</b><br><span class="note">${x.small?"둘이 비슷한 구역이라 효과가 작을 수 있어요":`${esc(x.c.name)}는 더 따뜻한 자리로, ${esc(x.h.name)}는 더 시원한 자리로`}</span></p><button class="btn" data-k="${k}">교환하기</button></div>`).join("")
-:`<p class="empty-msg">추워요와 더워요를 누른 친구가 둘 다 있어야 추천이 떠요. 원하면 아래 "직접 자리 바꾸기"를 쓰세요.</p>`;
+:`<p class="empty-msg">추워요와 더워요를 누른 친구가 둘 다 있어야 추천이 떠요.</p>`;
 document.querySelectorAll("#pairs .btn").forEach(b=>b.onclick=()=>{const x=p[+b.dataset.k];swapSeats(x.c.i,x.h.i,true);});
 
 const fs=state.names.filter(Boolean).map(feelOf);
@@ -445,14 +448,14 @@ showOb();
 function obGo(step){
 $("ob1").hidden=step!==1; $("ob2").hidden=step!==2;
 $("obStep").textContent=`${step} / 2`;
-$("obTitle").textContent=step===1?"이름을 입력하세요":`${obName}님, 내 자리를 고르세요`;
+$("obTitle").textContent=step===1?(myName?"이름을 확인하세요":"이름을 입력하세요"):`${obName}님, 내 자리를 고르세요`;
 $("obErr1").textContent=""; $("obErr2").textContent="";
 }
 function showOb(){
 const ready=!!(state&&uid);
-if(ready){ wasReg=!!myName; try{ myName?localStorage.setItem("ondo-reg","1"):localStorage.removeItem("ondo-reg"); }catch(e){} }
-// 서버 연결 전에도 등록 안 한 폰이면 바로 화면 1을 보여줌 (등록한 폰은 바로 메인 화면)
-const show=!obDismissed&&!editing&&(ready?!myName:!wasReg);
+// 들어올 때마다 화면 1부터. 전에 등록한 폰이면 이름을 미리 채워둠
+if(ready&&myName&&!prefilled){prefilled=true; if(!$("obName").value) $("obName").value=myName; if(!$("ob1").hidden) obGo(1);}
+const show=!obDismissed&&!editing;
 const wasHidden=$("ob").hidden;
 $("ob").hidden=!show;
 document.documentElement.style.overflow=(show||!$("logSheet").hidden)?"hidden":"";
@@ -463,7 +466,8 @@ const c=state.claims||{};
 let html="";
 for(let i=0;i<N;i++){
 const b=state.base[i]||"";
-const free=!b||(b===obName&&!c[b]);
+// 빈칸, 내가 전에 고른 자리, 아직 아무 폰도 안 쓴 내 이름 자리는 고를 수 있음
+const free=!b||(myName&&b===myName)||(b===obName&&(!c[b]||c[b]===uid));
 html+=`<button class="seat${free?"":" taken"}${obSeat===i?" chosen":""}" data-i="${i}" ${free?"":"disabled"} style="background:var(--bg)" aria-label="${b?esc(b)+" 자리":"빈 자리"}"><span class="n">${obSeat===i?esc(obName):b?esc(b):"빈칸"}</span></button>`;
 const col=i%COLS; if(col===1||col===3) html+=`<div class="aisle"></div>`;
 }
@@ -492,17 +496,16 @@ const a=pickA; picking=false; pickA=null; render();
 swapSeats(a,i,false); return;
 }
 const n=state.names[i]; if(!n) return;
-if(myName){toast(`이 폰은 ${myName}(으)로 등록돼 있어요`);return;}
+if(myName){toast(`이 폰은 ${myName}(으)로 등록돼 있어요. 바꾸려면 "다시 등록"을 누르세요`);return;}
 obDismissed=false; render();
 });
 $("meLine").addEventListener("click",e=>{
-if(e.target.id==="openOb"){obDismissed=false;render();}
+if(e.target.id==="openOb"){obDismissed=false;obSeat=null;if(myName)$("obName").value=myName;obGo(1);render();}
 });
 $("fCold").onclick=()=>setFeel("cold");$("fOk").onclick=()=>setFeel("ok");$("fHot").onclick=()=>setFeel("hot");
 $("apply").onclick=()=>applyTemp(+$("apply").dataset.next);
 $("sSummer").onclick=()=>setSeason("summer");$("sWinter").onclick=()=>setSeason("winter");
 $("resetBtn").onclick=()=>{resetIfNewHour(true);toast("원래 자리로 돌려놨어요");};
-$("manualBtn").onclick=()=>{picking=!picking;pickA=null;render();if(picking)$("seats").scrollIntoView({behavior:"smooth",block:"center"});};
 $("editBtn").onclick=()=>{editing=true;draft=state.base.slice();$("bulkText").value=draft.join(", ");$("seats").innerHTML="";render();};
 $("editDone").onclick=()=>{editing=false;saveBase(draft.slice());$("seats").innerHTML="";render();};
 $("bulkApply").onclick=()=>{
@@ -541,9 +544,12 @@ $("obNext").onclick=()=>{
 const n=$("obName").value.trim();
 if(!n){$("obErr1").textContent="이름을 입력해 주세요";return;}
 if(!state||!uid){$("obErr1").textContent="서버에 연결하는 중이에요. 잠깐 뒤에 다시 눌러주세요";return;}
-if((state.claims||{})[n]){$("obErr1").textContent="이미 등록된 이름이에요. 같은 이름이 있으면 뒤에 숫자를 붙여주세요 (예: 민준2)";return;}
+const c=state.claims||{};
+if(c[n]&&c[n]!==uid){$("obErr1").textContent="이미 다른 폰이 등록한 이름이에요. 같은 이름이 있으면 뒤에 숫자를 붙여주세요 (예: 민준2)";return;}
 obName=n;
-const k=state.base.indexOf(n); obSeat=k>=0?k:null; // 명단에 이미 내 이름이 있으면 그 자리를 미리 골라둠
+// 내 이름 자리가 있으면, 없으면 전에 앉던 자리를 미리 골라둠
+let k=state.base.indexOf(n); if(k<0&&myName) k=state.base.indexOf(myName);
+obSeat=k>=0?k:null;
 obGo(2); render();
 };
 $("obName").addEventListener("keydown",e=>{if(e.key==="Enter")$("obNext").click();});
@@ -552,7 +558,12 @@ const b=e.target.closest(".seat"); if(!b||b.disabled) return;
 obSeat=+b.dataset.i; $("obErr2").textContent=""; render();
 });
 $("obBack").onclick=()=>{obSeat=null;obGo(1);render();setTimeout(()=>$("obName").focus(),50);};
-$("obStart").onclick=()=>{if(obSeat!==null){$("obStart").disabled=true;register(obName,obSeat);}};
+$("obStart").onclick=()=>{
+if(obSeat===null) return;
+// 이름도 자리도 그대로면 서버에 안 쓰고 바로 시작
+if(myName&&obName===myName&&state.base[obSeat]===myName){obDismissed=true;obGo(1);render();toast(`${myName}님, 다시 오셨네요!`);return;}
+$("obStart").disabled=true; register(obName,obSeat);
+};
 $("obLater").onclick=()=>{obDismissed=true;showOb();render();};
 document.addEventListener("keydown",e=>{
 if(e.key!=="Escape") return;
