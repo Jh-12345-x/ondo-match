@@ -112,6 +112,7 @@ textarea{width:100%;font:inherit;font-size:14px;border:1px solid var(--line);bor
 <button id="sSummer" aria-pressed="true">여름</button>
 <button id="sWinter" aria-pressed="false">겨울</button>
 </div>
+<button class="btn" id="regOpen">자리 등록</button>
 <button class="btn ghost" id="logOpen">변경 기록</button>
 </div>
 </header>
@@ -187,7 +188,7 @@ textarea{width:100%;font:inherit;font-size:14px;border:1px solid var(--line);bor
 <p class="note">온도는 선생님이 정한 범위 안에서만 바뀌어요. 한쪽 의견이 3표 이상 많을 때만 1도씩 조절해요.</p>
 </section>
 </div>
-<p class="note" style="text-align:center;margin-top:16px">버전 1.7.1</p>
+<p class="note" style="text-align:center;margin-top:16px">버전 1.7.2</p>
 
 <div class="ob" id="logSheet" hidden>
 <div class="ob-head" style="flex-direction:row;justify-content:space-between;align-items:center">
@@ -426,6 +427,7 @@ $("log").innerHTML=log.length?log.map(l=>`<li><time>${fmtTime(l.at)}</time><span
 
 const mine=myName&&state.names.includes(myName);
 const mf=feelOf(myName);
+$("regOpen").textContent=myName?"다시 등록":"자리 등록";
 $("meLine").innerHTML=mine?`나: <b>${esc(myName)}</b> · 지금 상태: ${mf?feelTxt[mf]:"아직 안 누름"} <button class="btn ghost" id="openOb" style="margin-left:6px;padding:4px 10px">다시 등록</button>`
 :`아직 등록 안 한 폰이에요. 둘러보기만 할 수 있어요. <button class="btn" id="openOb" style="margin-left:6px">이름·자리 등록하기</button>`;
 ["fCold","fOk","fHot"].forEach(id=>$(id).disabled=editing||!mine);
@@ -499,8 +501,11 @@ const n=state.names[i]; if(!n) return;
 if(myName){toast(`이 폰은 ${myName}(으)로 등록돼 있어요. 바꾸려면 "다시 등록"을 누르세요`);return;}
 obDismissed=false; render();
 });
+// 둘러보기 중이거나 등록한 뒤에도 언제든 이름·자리 화면을 다시 열 수 있음
+function openReg(){obDismissed=false;obSeat=null;if(myName)$("obName").value=myName;obGo(1);showOb();render();}
+$("regOpen").onclick=openReg;
 $("meLine").addEventListener("click",e=>{
-if(e.target.id==="openOb"){obDismissed=false;obSeat=null;if(myName)$("obName").value=myName;obGo(1);render();}
+if(e.target.id==="openOb") openReg();
 });
 $("fCold").onclick=()=>setFeel("cold");$("fOk").onclick=()=>setFeel("ok");$("fHot").onclick=()=>setFeel("hot");
 $("apply").onclick=()=>applyTemp(+$("apply").dataset.next);
