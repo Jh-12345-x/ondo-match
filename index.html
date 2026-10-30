@@ -21,6 +21,8 @@
 --bg:#10171d; --card:#18222a; --fg:#e7eef3; --muted:#93a4b1; --line:#2a3741;
 --cold:#6aaef0; --cold-soft:#173049; --hot:#f08a5d; --hot-soft:#43261a; --ok:#5cc495; --ok-soft:#173a2b; --accent:#e7eef3; color-scheme:dark}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5;
 padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
 .wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
@@ -45,7 +47,7 @@ section{background:var(--card);border:1px solid var(--line);border-radius:14px;p
 .seats{display:grid;grid-template-columns:1fr 1fr 10px 1fr 1fr 10px 1fr 1fr;gap:5px 3px}
 .aisle{}
 .ac{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:10px;font-weight:700;color:var(--cold);background:var(--card);border:1.5px dashed var(--cold);border-radius:6px;padding:2px 6px;pointer-events:none;white-space:nowrap}
-.board{grid-column:2;text-align:center;font-size:12px;color:var(--muted);border-top:3px solid var(--line);padding-top:4px}
+.board{grid-column:2;text-align:center;font-size:12px;color:var(--muted);border-bottom:3px solid var(--line);padding-bottom:4px}
 .seat{border:1.5px solid transparent;border-radius:8px;padding:5px 1px;text-align:center;cursor:pointer;font:inherit;color:var(--fg);
 display:flex;flex-direction:column;align-items:center;gap:0;min-width:0}
 .seat .n{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
@@ -58,6 +60,16 @@ display:flex;flex-direction:column;align-items:center;gap:0;min-width:0}
 .log li{display:flex;gap:10px;font-size:13px;padding:8px 10px;border-radius:8px;background:var(--bg);flex-wrap:wrap}
 .log time{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 .log span{min-width:0;flex:1}
+/* 처음 들어왔을 때 뜨는 등록 창 */
+.ob{position:fixed;inset:0;z-index:20;background:rgba(10,16,22,.55);display:flex;align-items:center;justify-content:center;
+padding:calc(16px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.ob-card{background:var(--card);color:var(--fg);border-radius:16px;padding:20px;width:100%;max-width:440px;max-height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:12px}
+#obName{font:inherit;font-size:18px;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--fg);width:100%}
+#obName:focus-visible{outline:2px solid var(--cold);outline-offset:1px}
+.ob-map{display:flex;flex-direction:column;gap:6px}
+.ob .err{color:var(--hot);font-size:13px;margin:0;min-height:1em}
+.seat.taken{opacity:.4;cursor:not-allowed}
+.seat.chosen{border-color:var(--ok);background:var(--ok-soft)!important}
 .seat input{width:100%;min-width:0;font:inherit;font-size:12px;text-align:center;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg);padding:4px 1px}
 .seat:focus-visible,button:focus-visible{outline:2px solid var(--cold);outline-offset:2px}
 .f.cold{color:var(--cold)} .f.hot{color:var(--hot)} .f.ok{color:var(--ok)}
@@ -115,23 +127,24 @@ textarea{width:100%;font:inherit;font-size:14px;border:1px solid var(--line);bor
 </div>
 
 <div id="bulk" hidden style="display:flex;flex-direction:column;gap:8px">
-<p class="note">자리 칸에 바로 이름을 쓰거나, 아래에 한꺼번에 붙여넣으세요. 뒷줄 왼쪽부터 오른쪽으로, 쉼표나 줄바꿈으로 구분해요. 빈 자리는 비워두면 돼요.</p>
+<p class="note">자리 칸에 바로 이름을 쓰거나, 아래에 한꺼번에 붙여넣으세요. 앞줄(칠판 쪽) 왼쪽부터 오른쪽으로, 쉼표나 줄바꿈으로 구분해요. 빈 자리는 비워두면 돼요.</p>
 <textarea id="bulkText" rows="3" placeholder="예) 민준, 서연, 도윤, 지우 ..."></textarea>
 <div class="row">
 <button class="btn" id="bulkApply">명단 넣기</button>
 <button class="btn ghost" id="clearNames">모두 지우기</button>
+<button class="btn ghost" id="clearClaims">폰 등록 모두 풀기</button>
 <button class="btn ghost" id="editDone">완료</button>
 </div>
 </div>
 
 <div class="room">
+<div></div><div class="board">칠판 · 앞쪽</div><div></div>
 <div class="side" id="leftSide">복도</div>
 <div class="floor">
 <div class="seats" id="seats"></div>
 <div class="ac" id="acTag">❄ 에어컨</div>
 </div>
 <div class="side" id="rightSide">창문</div>
-<div></div><div class="board">칠판 · 앞쪽</div><div></div>
 </div>
 <div class="legend">
 <span><i class="sw" style="background:var(--cold-soft)"></i>시원한 자리</span>
@@ -178,13 +191,32 @@ textarea{width:100%;font:inherit;font-size:14px;border:1px solid var(--line);bor
 <p class="note">온도는 선생님이 정한 범위 안에서만 바뀌어요. 한쪽 의견이 3표 이상 많을 때만 1도씩 조절해요.</p>
 </section>
 </div>
-<p class="note" style="text-align:center;margin-top:16px">버전 1.3.1</p>
+<p class="note" style="text-align:center;margin-top:16px">버전 1.5.1</p>
+
+<div class="ob" id="ob" hidden>
+<div class="ob-card" role="dialog" aria-modal="true" aria-labelledby="obTitle">
+<span class="label" id="obStep">1 / 2</span>
+<h2 id="obTitle">이름을 입력하세요</h2>
+<div id="ob1" style="display:flex;flex-direction:column;gap:10px">
+<input id="obName" maxlength="6" placeholder="예) 이주환" autocomplete="off">
+<p class="err" id="obErr1"></p>
+<div class="row"><button class="btn" id="obNext">다음</button><button class="btn ghost" id="obLater">둘러보기만 할게요</button></div>
+</div>
+<div id="ob2" hidden style="display:flex;flex-direction:column;gap:10px">
+<p class="sub" style="margin:0">내 자리를 누르세요. 다른 친구가 이미 고른 자리는 못 골라요. 왼쪽이 복도, 오른쪽이 창문이에요.</p>
+<div class="ob-map"><div class="board">칠판 · 앞쪽</div><div class="seats" id="obSeats"></div></div>
+<p class="err" id="obErr2"></p>
+<div class="row"><button class="btn" id="obStart" disabled>시작하기</button><button class="btn ghost" id="obBack">이름 다시 쓰기</button></div>
+</div>
+</div>
+</div>
 <div class="toast" id="toast" hidden></div>
 
 <script type="module">
 // ===== Firebase 연결 =====
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, doc, onSnapshot, setDoc, updateDoc, runTransaction, FieldPath } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 const firebaseConfig = {
 apiKey: "AIzaSyCtEvmB2jk1uGsd8G-poe8bM4QRUZqBevg",
@@ -194,14 +226,19 @@ storageBucket: "ondo-match.firebasestorage.app",
 messagingSenderId: "23241321572",
 appId: "1:23241321572:web:23321755698fb4d3220371"
 };
-const db = getFirestore(initializeApp(firebaseConfig));
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+// 익명 로그인: 회원가입 없이 폰(브라우저)마다 고유 번호(uid)가 생김
+const auth = getAuth(app);
+let uid = null;
 // 반 전체가 같이 쓰는 문서 하나: classes/main
 const ref = doc(db, "classes", "main");
 
 // ===== 교실 설정 =====
-// 자리: 3분단 × 2줄 × 4행 = 24자리. index = 행*6 + 열 (행 0 = 맨 뒤, 행 3 = 칠판 앞 / 열 0 = 복도 쪽, 열 5 = 창문 쪽)
+// 자리: 3분단 × 2줄 × 4행 = 24자리. index = 행*6 + 열 (행 0 = 칠판 앞, 행 3 = 맨 뒤 / 열 0 = 복도 쪽, 열 5 = 창문 쪽)
 const ROWS=4, COLS=6, N=ROWS*COLS;
-const DEFAULT_NAMES=["민준","서연","도윤","지우","하준","서윤","시우","하은","주원","지민","예준","수아","건우","지아","현우","채원","준서","다은","우진","윤서","선우","소율","연우","예린"];
+// 처음엔 빈 교실. 친구들이 들어와서 각자 이름과 자리를 등록함
+const DEFAULT_NAMES=Array(N).fill("");
 const SEASON={
 summer:{temp:26,min:24,max:28,ac:"❄ 에어컨", win:[0,0,0,0,0.4,1.1], acEffect:-1, center:-1.3},
 winter:{temp:20,min:18,max:22,ac:"♨ 난방", win:[0,0,0,0,-0.5,-1.3], acEffect:1, center:1.1}
@@ -212,7 +249,14 @@ const slotKey=()=>{const d=new Date();return d.toDateString()+" "+d.getHours();}
 // ===== 서버에서 받아온 상태 =====
 // base: 원래 자리, names: 이번 시간 자리, feels: {이름: "cold"|"ok"|"hot"}
 let state=null, editing=false, draft=[], picking=false, pickA=null;
-let myName=""; try{myName=localStorage.getItem("ondo-me")||"";}catch(e){}
+// claims: {이름: uid} → 한 이름은 한 폰만, 한 폰은 한 이름만 등록 가능
+let myName="";
+let obName="", obSeat=null, obDismissed=false; // 등록 창 상태
+function claimedName(){
+if(!state||!uid) return "";
+const c=state.claims||{};
+return Object.keys(c).find(n=>c[n]===uid)||"";
+}
 
 const $=id=>document.getElementById(id);
 function toast(msg){const t=$("toast");t.textContent=msg;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>t.hidden=true,2400);}
@@ -269,8 +313,36 @@ tx.update(ref,{names,feels,log:addLog(s,text)});
 toast(`${a||"빈 자리"}·${b||"빈 자리"} 자리를 바꿨어요 (이번 시간만)`);
 }catch(e){fail(e);}
 }
+// 이름 + 자리 등록: 이 폰(uid)을 이 이름에 묶고, 고른 자리를 그 친구의 원래 자리로 정함
+async function register(name,i){
+try{
+await runTransaction(db, async tx=>{
+const s=(await tx.get(ref)).data();
+const c={...(s.claims||{})};
+if(Object.values(c).includes(uid)) throw new Error("이 폰은 이미 등록돼 있어요");
+if(c[name]) throw new Error("방금 다른 폰이 같은 이름으로 등록했어요. 이름 뒤에 숫자를 붙여주세요");
+const b=s.base[i]||"";
+if(b&&b!==name) throw new Error("방금 다른 친구가 그 자리를 골랐어요. 다른 자리를 골라주세요");
+const base=s.base.slice(), names=s.names.slice();
+// 같은 이름이 다른 자리에 미리 들어가 있었으면 그 자리는 비움
+base.forEach((n,k)=>{if(n===name&&k!==i){base[k]="";if(names[k]===name)names[k]="";}});
+if(names[i]===s.base[i]) names[i]=name; // 이번 시간에 자리를 안 바꾼 칸이면 바로 반영
+base[i]=name; c[name]=uid;
+tx.update(ref,{base,names,claims:c,log:addLog(s,"이름과 자리를 등록함",name)});
+});
+obName=""; obSeat=null; obGo(1);
+toast(`${name}님 등록 완료! 이제 이 폰으로 투표할 수 있어요`);
+}catch(e){
+console.error(e);
+$("obErr2").textContent=e.message.startsWith("이")||e.message.startsWith("방금")?e.message:"등록이 안 됐어요. 인터넷 연결을 확인하고 다시 눌러주세요";
+obSeat=null; render();
+}
+}
+async function clearClaims(){
+try{await updateDoc(ref,{claims:{},feels:{},log:addLog(state,"모든 등록을 풀었음")});toast("등록을 모두 풀었어요. 각자 다시 등록하면 돼요");}catch(e){fail(e);}
+}
 async function setFeel(f){
-if(!myName) return;
+if(!myName||(state.claims||{})[myName]!==uid) return;
 try{await updateDoc(ref,new FieldPath("feels",myName),f);}catch(e){fail(e);}
 }
 async function applyTemp(next){
@@ -302,7 +374,7 @@ function seatHTML(i){
 if(editing) return `<div class="seat" style="background:${zoneBg(i)}"><input id="nm${i}" value="${esc(draft[i])}" maxlength="6" aria-label="${i+1}번 자리 이름" placeholder="빈"></div>`;
 const n=state.names[i], f=feelOf(n);
 return `<button class="seat${n&&n===myName?" me":""}${n?"":" empty"}${picking&&pickA===i?" pick":""}" data-i="${i}" style="background:${zoneBg(i)}" aria-label="${n?esc(n):"빈 자리"}">
-<span class="n">${n?esc(n):"빈 자리"}</span>
+<span class="n">${n?esc(n):"빈칸"}</span>
 <span class="f ${f||""}">${f?feelTxt[f]:""}</span></button>`;
 }
 
@@ -317,7 +389,7 @@ $("sWinter").setAttribute("aria-pressed",state.season==="winter");
 $("editBtn").hidden=editing; $("bulk").hidden=!editing;
 $("mapSub").textContent=editing?"자리 칸에 이름을 입력하고 완료를 누르세요."
 :picking?(pickA===null?"바꿀 자리 2개 중 첫 번째를 누르세요.":`${state.names[pickA]||"빈 자리"}와 바꿀 자리를 누르세요.`)
-:"내 이름이 있는 자리를 눌러 선택하세요. 색은 에어컨·창문 위치로 본 대략적인 구역이에요.";
+:"처음엔 내 이름 자리를 눌러 등록하세요. 색은 에어컨·창문 위치로 본 대략적인 구역이에요.";
 
 // 이름 입력 중에는 칸을 다시 그리지 않음 (입력하던 글자가 날아가지 않게)
 if(!(editing && $("nm0"))){
@@ -338,7 +410,8 @@ $("log").innerHTML=log.length?log.map(l=>`<li><time>${fmtTime(l.at)}</time><span
 
 const mine=myName&&state.names.includes(myName);
 const mf=feelOf(myName);
-$("meLine").innerHTML=mine?`나: <b>${esc(myName)}</b> · 지금 상태: ${mf?feelTxt[mf]:"아직 안 누름"}`:"먼저 지도에서 내 이름이 있는 자리를 눌러주세요.";
+$("meLine").innerHTML=mine?`나: <b>${esc(myName)}</b> (등록됨) · 지금 상태: ${mf?feelTxt[mf]:"아직 안 누름"}`
+:`아직 등록 안 한 폰이에요. 둘러보기만 할 수 있어요. <button class="btn" id="openOb" style="margin-left:6px">이름·자리 등록하기</button>`;
 ["fCold","fOk","fHot"].forEach(id=>$(id).disabled=editing||!mine);
 
 const p=pairs();
@@ -352,6 +425,33 @@ $("barC").style.width=c/tot*100+"%";$("barO").style.width=o/tot*100+"%";$("barH"
 $("cC").textContent=`추워요 ${c}`;$("cO").textContent=`괜찮아요 ${o}`;$("cH").textContent=`더워요 ${h}`;
 const r=decide(c,h);
 $("result").innerHTML=r.msg; $("apply").disabled=editing||r.next===state.setTemp; $("apply").dataset.next=r.next;
+showOb();
+}
+
+// ===== 등록 창 =====
+function obGo(step){
+$("ob1").hidden=step!==1; $("ob2").hidden=step!==2;
+$("obStep").textContent=`${step} / 2`;
+$("obTitle").textContent=step===1?"이름을 입력하세요":`${obName}님, 내 자리를 고르세요`;
+$("obErr1").textContent=""; $("obErr2").textContent="";
+}
+function showOb(){
+const show=!!(state&&uid&&!myName&&!obDismissed&&!editing);
+const wasHidden=$("ob").hidden;
+$("ob").hidden=!show;
+if(!show) return;
+if(wasHidden&&!$("ob1").hidden) setTimeout(()=>$("obName").focus(),50);
+if($("ob2").hidden) return;
+const c=state.claims||{};
+let html="";
+for(let i=0;i<N;i++){
+const b=state.base[i]||"";
+const free=!b||(b===obName&&!c[b]);
+html+=`<button class="seat${free?"":" taken"}${obSeat===i?" chosen":""}" data-i="${i}" ${free?"":"disabled"} style="background:var(--bg)" aria-label="${b?esc(b)+" 자리":"빈 자리"}"><span class="n">${obSeat===i?esc(obName):b?esc(b):"빈칸"}</span></button>`;
+const col=i%COLS; if(col===1||col===3) html+=`<div class="aisle"></div>`;
+}
+$("obSeats").innerHTML=html;
+$("obStart").disabled=obSeat===null;
 }
 
 function decide(c,h){
@@ -375,8 +475,11 @@ const a=pickA; picking=false; pickA=null; render();
 swapSeats(a,i,false); return;
 }
 const n=state.names[i]; if(!n) return;
-myName=n; try{localStorage.setItem("ondo-me",n);}catch(e){}
-render();
+if(myName){toast(`이 폰은 ${myName}(으)로 등록돼 있어요`);return;}
+obDismissed=false; render();
+});
+$("meLine").addEventListener("click",e=>{
+if(e.target.id==="openOb"){obDismissed=false;render();}
 });
 $("fCold").onclick=()=>setFeel("cold");$("fOk").onclick=()=>setFeel("ok");$("fHot").onclick=()=>setFeel("hot");
 $("apply").onclick=()=>applyTemp(+$("apply").dataset.next);
@@ -396,10 +499,11 @@ $("clearNames").onclick=()=>{draft=Array(N).fill("");$("bulkText").value="";$("s
 onSnapshot(ref, snap=>{
 if(!snap.exists()){
 // 처음 한 번: 기본 데이터 만들기
-setDoc(ref,{base:DEFAULT_NAMES,names:DEFAULT_NAMES,feels:{},slot:slotKey(),season:"summer",setTemp:SEASON.summer.temp}).catch(fail);
+setDoc(ref,{base:DEFAULT_NAMES,names:DEFAULT_NAMES,feels:{},claims:{},slot:slotKey(),season:"summer",setTemp:SEASON.summer.temp}).catch(fail);
 return;
 }
 state=snap.data();
+myName=claimedName();
 $("conn").textContent="실시간 연결됨 · 반 친구들이 누른 게 바로 보여요";
 if(state.slot!==slotKey()) resetIfNewHour(false);
 render();
@@ -408,6 +512,31 @@ console.error(e);
 $("conn").textContent="서버에 연결하지 못했어요. Firestore 보안 규칙(테스트 모드 기간)을 확인해 주세요.";
 });
 setInterval(()=>{if(state&&state.slot!==slotKey()) resetIfNewHour(false); else render();},30000);
+
+onAuthStateChanged(auth, u=>{ uid=u?u.uid:null; myName=claimedName(); render(); });
+signInAnonymously(auth).catch(e=>{
+console.error(e);
+$("conn").textContent="로그인이 안 돼요. Firebase에서 익명 로그인을 켰는지 확인해 주세요.";
+});
+$("clearClaims").onclick=()=>clearClaims();
+
+$("obNext").onclick=()=>{
+const n=$("obName").value.trim();
+if(!n){$("obErr1").textContent="이름을 입력해 주세요";return;}
+if((state.claims||{})[n]){$("obErr1").textContent="이미 등록된 이름이에요. 같은 이름이 있으면 뒤에 숫자를 붙여주세요 (예: 민준2)";return;}
+obName=n;
+const k=state.base.indexOf(n); obSeat=k>=0?k:null; // 명단에 이미 내 이름이 있으면 그 자리를 미리 골라둠
+obGo(2); render();
+};
+$("obName").addEventListener("keydown",e=>{if(e.key==="Enter")$("obNext").click();});
+$("obSeats").addEventListener("click",e=>{
+const b=e.target.closest(".seat"); if(!b||b.disabled) return;
+obSeat=+b.dataset.i; $("obErr2").textContent=""; render();
+});
+$("obBack").onclick=()=>{obSeat=null;obGo(1);render();setTimeout(()=>$("obName").focus(),50);};
+$("obStart").onclick=()=>{if(obSeat!==null){$("obStart").disabled=true;register(obName,obSeat);}};
+$("obLater").onclick=()=>{obDismissed=true;render();};
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("ob").hidden){obDismissed=true;render();}});
 </script>
 </body>
 </html>
