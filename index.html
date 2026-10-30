@@ -8,21 +8,21 @@
 <style>
 /* 레이아웃: 한 열짜리 모바일 앱. 현재 온도 → 교실 지도(3분단 × 2줄 × 4행, 천장 가운데 에어컨) → 자리 교환 추천 → 온도 투표 */
 :root{
-  --bg:#f3f6f8; --card:#ffffff; --fg:#17222b; --muted:#5b6b78; --line:#d9e1e7;
-  --cold:#2f7fd1; --cold-soft:#dcebfb; --hot:#e0612d; --hot-soft:#fde4d8; --ok:#2e9a6a; --ok-soft:#dbf2e6;
-  --accent:#17222b;
-  --display:"Do Hyeon","Noto Sans KR",system-ui,sans-serif;
-  --body:"Noto Sans KR",system-ui,-apple-system,sans-serif;
+--bg:#f3f6f8; --card:#ffffff; --fg:#17222b; --muted:#5b6b78; --line:#d9e1e7;
+--cold:#2f7fd1; --cold-soft:#dcebfb; --hot:#e0612d; --hot-soft:#fde4d8; --ok:#2e9a6a; --ok-soft:#dbf2e6;
+--accent:#17222b;
+--display:"Do Hyeon","Noto Sans KR",system-ui,sans-serif;
+--body:"Noto Sans KR",system-ui,-apple-system,sans-serif;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#10171d; --card:#18222a; --fg:#e7eef3; --muted:#93a4b1; --line:#2a3741;
-  --cold:#6aaef0; --cold-soft:#173049; --hot:#f08a5d; --hot-soft:#43261a; --ok:#5cc495; --ok-soft:#173a2b; --accent:#e7eef3; color-scheme:dark}}
+--bg:#10171d; --card:#18222a; --fg:#e7eef3; --muted:#93a4b1; --line:#2a3741;
+--cold:#6aaef0; --cold-soft:#173049; --hot:#f08a5d; --hot-soft:#43261a; --ok:#5cc495; --ok-soft:#173a2b; --accent:#e7eef3; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#10171d; --card:#18222a; --fg:#e7eef3; --muted:#93a4b1; --line:#2a3741;
-  --cold:#6aaef0; --cold-soft:#173049; --hot:#f08a5d; --hot-soft:#43261a; --ok:#5cc495; --ok-soft:#173a2b; --accent:#e7eef3; color-scheme:dark}
+--bg:#10171d; --card:#18222a; --fg:#e7eef3; --muted:#93a4b1; --line:#2a3741;
+--cold:#6aaef0; --cold-soft:#173049; --hot:#f08a5d; --hot-soft:#43261a; --ok:#5cc495; --ok-soft:#173a2b; --accent:#e7eef3; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5;
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
 .wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
 h1,h2{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
 h1{font-size:30px;line-height:1.1}
@@ -47,7 +47,7 @@ section{background:var(--card);border:1px solid var(--line);border-radius:14px;p
 .ac{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:10px;font-weight:700;color:var(--cold);background:var(--card);border:1.5px dashed var(--cold);border-radius:6px;padding:2px 6px;pointer-events:none;white-space:nowrap}
 .board{grid-column:2;text-align:center;font-size:12px;color:var(--muted);border-top:3px solid var(--line);padding-top:4px}
 .seat{border:1.5px solid transparent;border-radius:8px;padding:5px 1px;text-align:center;cursor:pointer;font:inherit;color:var(--fg);
-  display:flex;flex-direction:column;align-items:center;gap:0;min-width:0}
+display:flex;flex-direction:column;align-items:center;gap:0;min-width:0}
 .seat .n{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .seat .t{font-size:10px;font-variant-numeric:tabular-nums;color:var(--muted)}
 .seat .f{font-size:10px;font-weight:700;height:14px}
@@ -84,195 +84,284 @@ textarea{width:100%;font:inherit;font-size:14px;border:1px solid var(--line);bor
 <body>
 
 <div class="wrap">
-  <header class="top">
-    <div>
-      <h1>우리반 온도 맞춤</h1>
-      <p class="sub">초고 · 예시 이름으로 시작해요. 이름은 바꿀 수 있어요.</p>
-    </div>
-    <div class="season" role="group" aria-label="계절">
-      <button id="sSummer" aria-pressed="true">여름</button>
-      <button id="sWinter" aria-pressed="false">겨울</button>
-    </div>
-  </header>
+<header class="top">
+<div>
+<h1>우리반 온도 맞춤</h1>
+<p class="sub" id="conn">서버에 연결하는 중…</p>
+</div>
+<div class="season" role="group" aria-label="계절">
+<button id="sSummer" aria-pressed="true">여름</button>
+<button id="sWinter" aria-pressed="false">겨울</button>
+</div>
+</header>
 
-  <section>
-    <span class="label">지금 냉난방기 설정 온도</span>
-    <div class="temp"><b id="setTemp">26°</b><span id="range"></span></div>
-  </section>
+<section>
+<span class="label">지금 냉난방기 설정 온도</span>
+<div class="temp"><b id="setTemp">26°</b><span id="range"></span></div>
+</section>
 
-  <section>
-    <div class="head">
-      <div>
-        <h2>교실 자리 지도</h2>
-        <p class="sub" id="mapSub">내 자리를 눌러 선택하세요.</p>
-      </div>
-      <button class="btn ghost" id="editBtn">이름 설정</button>
-    </div>
+<section>
+<div class="head">
+<div>
+<h2>교실 자리 지도</h2>
+<p class="sub" id="mapSub">내 자리를 눌러 선택하세요. 색은 에어컨·창문 위치로 본 대략적인 구역이에요.</p>
+</div>
+<button class="btn ghost" id="editBtn">원래 자리 설정</button>
+</div>
 
-    <div id="bulk" hidden style="display:flex;flex-direction:column;gap:8px">
-      <p class="note">자리 칸에 바로 이름을 쓰거나, 아래에 한꺼번에 붙여넣으세요. 뒷줄 왼쪽부터 오른쪽으로, 쉼표나 줄바꿈으로 구분해요. 빈 자리는 비워두면 돼요.</p>
-      <textarea id="bulkText" rows="3" placeholder="예) 민준, 서연, 도윤, 지우 ..."></textarea>
-      <div class="row">
-        <button class="btn" id="bulkApply">명단 넣기</button>
-        <button class="btn ghost" id="clearNames">모두 지우기</button>
-        <button class="btn ghost" id="editDone">완료</button>
-      </div>
-    </div>
+<div id="bulk" hidden style="display:flex;flex-direction:column;gap:8px">
+<p class="note">자리 칸에 바로 이름을 쓰거나, 아래에 한꺼번에 붙여넣으세요. 뒷줄 왼쪽부터 오른쪽으로, 쉼표나 줄바꿈으로 구분해요. 빈 자리는 비워두면 돼요.</p>
+<textarea id="bulkText" rows="3" placeholder="예) 민준, 서연, 도윤, 지우 ..."></textarea>
+<div class="row">
+<button class="btn" id="bulkApply">명단 넣기</button>
+<button class="btn ghost" id="clearNames">모두 지우기</button>
+<button class="btn ghost" id="editDone">완료</button>
+</div>
+</div>
 
-    <div class="room">
-      <div class="side" id="leftSide">복도</div>
-      <div class="floor">
-        <div class="seats" id="seats"></div>
-        <div class="ac" id="acTag">❄ 에어컨</div>
-      </div>
-      <div class="side" id="rightSide">창문</div>
-      <div></div><div class="board">칠판 · 앞쪽</div><div></div>
-    </div>
-    <div class="legend">
-      <span><i class="sw" style="background:var(--cold-soft)"></i>시원한 자리</span>
-      <span><i class="sw" style="background:var(--hot-soft)"></i>따뜻한 자리</span>
-    </div>
-    <p class="me-line" id="meLine"></p>
-    <div class="feel">
-      <button class="c" id="fCold">🥶 추워요</button>
-      <button class="o" id="fOk">🙂 괜찮아요</button>
-      <button class="h" id="fHot">🥵 더워요</button>
-    </div>
-  </section>
+<div class="room">
+<div class="side" id="leftSide">복도</div>
+<div class="floor">
+<div class="seats" id="seats"></div>
+<div class="ac" id="acTag">❄ 에어컨</div>
+</div>
+<div class="side" id="rightSide">창문</div>
+<div></div><div class="board">칠판 · 앞쪽</div><div></div>
+</div>
+<div class="legend">
+<span><i class="sw" style="background:var(--cold-soft)"></i>시원한 자리</span>
+<span><i class="sw" style="background:var(--hot-soft)"></i>따뜻한 자리</span>
+</div>
+<p class="me-line" id="meLine"></p>
+<div class="feel">
+<button class="c" id="fCold">🥶 추워요</button>
+<button class="o" id="fOk">🙂 괜찮아요</button>
+<button class="h" id="fHot">🥵 더워요</button>
+</div>
+</section>
 
-  <section>
-    <div>
-      <h2>자리 교환 추천</h2>
-      <p class="sub">추운 친구는 따뜻한 자리로, 더운 친구는 시원한 자리로. 온도를 안 바꿔도 되니 에너지도 아껴요.</p>
-    </div>
-    <div id="pairs" style="display:flex;flex-direction:column;gap:8px"></div>
-  </section>
+<section>
+<div>
+<h2>자리 교환 추천</h2>
+<p class="sub">추운 친구는 따뜻한 자리로, 더운 친구는 시원한 자리로. 온도를 안 바꿔도 되니 에너지도 아껴요.</p>
+</div>
+<div id="pairs" style="display:flex;flex-direction:column;gap:8px"></div>
+<div class="row" style="align-items:center;justify-content:space-between">
+<p class="note" id="swapStatus" style="flex:1;min-width:0"></p>
+<button class="btn ghost" id="resetBtn">원래 자리로</button>
+</div>
+</section>
 
-  <section>
-    <div>
-      <h2>온도 투표</h2>
-      <p class="sub">자리 교환 후에도 남은 의견으로 온도를 정해요.</p>
-    </div>
-    <div class="bar"><i id="barC" style="background:var(--cold)"></i><i id="barO" style="background:var(--ok)"></i><i id="barH" style="background:var(--hot)"></i></div>
-    <div class="counts"><span style="color:var(--cold)" id="cC"></span><span style="color:var(--ok)" id="cO"></span><span style="color:var(--hot)" id="cH"></span></div>
-    <p class="result" id="result"></p>
-    <button class="btn" id="apply">투표 결과 반영하기</button>
-    <p class="note">온도는 선생님이 정한 범위 안에서만 바뀌어요. 한쪽 의견이 3표 이상 많을 때만 1도씩 조절해요.</p>
-  </section>
+<section>
+<div>
+<h2>온도 투표</h2>
+<p class="sub">자리 교환 후에도 남은 의견으로 온도를 정해요.</p>
+</div>
+<div class="bar"><i id="barC" style="background:var(--cold)"></i><i id="barO" style="background:var(--ok)"></i><i id="barH" style="background:var(--hot)"></i></div>
+<div class="counts"><span style="color:var(--cold)" id="cC"></span><span style="color:var(--ok)" id="cO"></span><span style="color:var(--hot)" id="cH"></span></div>
+<p class="result" id="result"></p>
+<button class="btn" id="apply">투표 결과 반영하기</button>
+<p class="note">온도는 선생님이 정한 범위 안에서만 바뀌어요. 한쪽 의견이 3표 이상 많을 때만 1도씩 조절해요.</p>
+</section>
 </div>
 <div class="toast" id="toast" hidden></div>
 
-<script>
+<script type="module">
+// ===== Firebase 연결 =====
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, doc, onSnapshot, setDoc, updateDoc, runTransaction, FieldPath } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+apiKey: "AIzaSyCtEvmB2jk1uGsd8G-poe8bM4QRUZqBevg",
+authDomain: "ondo-match.firebaseapp.com",
+projectId: "ondo-match",
+storageBucket: "ondo-match.firebasestorage.app",
+messagingSenderId: "23241321572",
+appId: "1:23241321572:web:23321755698fb4d3220371"
+};
+const db = getFirestore(initializeApp(firebaseConfig));
+// 반 전체가 같이 쓰는 문서 하나: classes/main
+const ref = doc(db, "classes", "main");
+
+// ===== 교실 설정 =====
 // 자리: 3분단 × 2줄 × 4행 = 24자리. index = 행*6 + 열 (행 0 = 맨 뒤, 행 3 = 칠판 앞 / 열 0 = 복도 쪽, 열 5 = 창문 쪽)
 const ROWS=4, COLS=6, N=ROWS*COLS;
 const DEFAULT_NAMES=["민준","서연","도윤","지우","하준","서윤","시우","하은","주원","지민","예준","수아","건우","지아","현우","채원","준서","다은","우진","윤서","선우","소율","연우","예린"];
-const SAMPLE_FEEL=["cold",null,"cold","ok",null,"hot", null,"ok","cold",null,"ok","hot", "hot",null,"ok","cold",null,"hot", null,"hot","ok",null,"cold","ok"];
 const SEASON={
-  summer:{temp:26,min:24,max:28,ac:"❄ 에어컨", win:[0,0,0,0,0.4,1.1], acEffect:-1, center:-1.3},
-  winter:{temp:20,min:18,max:22,ac:"♨ 난방", win:[0,0,0,0,-0.5,-1.3], acEffect:1, center:1.1}
+summer:{temp:26,min:24,max:28,ac:"❄ 에어컨", win:[0,0,0,0,0.4,1.1], acEffect:-1, center:-1.3},
+winter:{temp:20,min:18,max:22,ac:"♨ 난방", win:[0,0,0,0,-0.5,-1.3], acEffect:1, center:1.1}
 };
-let season="summer", setTemp=SEASON.summer.temp, editing=false, me=9;
+// 매시 정각마다 바뀌는 시간 칸. 이게 바뀌면 원래 자리로 돌아감
+const slotKey=()=>{const d=new Date();return d.toDateString()+" "+d.getHours();};
 
-function loadNames(){
-  try{const s=JSON.parse(localStorage.getItem("ondo-names"));if(Array.isArray(s)&&s.length===N)return s;}catch(e){}
-  return DEFAULT_NAMES.slice();
-}
-function saveNames(){try{localStorage.setItem("ondo-names",JSON.stringify(seats.map(s=>s.name)));}catch(e){}}
-let seats=loadNames().map((n,i)=>({name:n,feel:n?SAMPLE_FEEL[i]:null}));
+// ===== 서버에서 받아온 상태 =====
+// base: 원래 자리, names: 이번 시간 자리, feels: {이름: "cold"|"ok"|"hot"}
+let state=null, editing=false, draft=[];
+let myName=""; try{myName=localStorage.getItem("ondo-me")||"";}catch(e){}
 
 const $=id=>document.getElementById(id);
-// 체감 온도: 천장 가운데 냉난방기에서 멀수록 효과가 약해지고, 창문 쪽은 여름엔 덥고 겨울엔 추움
-function seatTemp(i){
-  const S=SEASON[season], r=Math.floor(i/COLS), c=i%COLS;
-  const dx=(c-2.5)/2.5, dy=(r-1.5)/1.5, d=Math.min(1,Math.hypot(dx,dy)/1.2);
-  return setTemp + S.center*(1-d) + (S.acEffect<0?0.6:-0.6)*d + S.win[c];
-}
-const fmt=t=>(Math.round(t*10)/10).toFixed(1)+"°";
-function toast(msg){const t=$("toast");t.textContent=msg;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>t.hidden=true,2200);}
-function zoneBg(i){const d=seatTemp(i)-setTemp;return d<=-0.6?"var(--cold-soft)":d>=0.6?"var(--hot-soft)":"var(--bg)";}
+function toast(msg){const t=$("toast");t.textContent=msg;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>t.hidden=true,2400);}
+const fail=e=>{console.error(e);toast("저장이 안 됐어요. 인터넷 연결을 확인하고 다시 눌러주세요");};
 const feelTxt={cold:"추워요",hot:"더워요",ok:"괜찮아요"};
-const esc=s=>s.replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
+const esc=s=>String(s).replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
 
-function pairs(){
-  const list=seats.map((s,i)=>({...s,i})).filter(s=>s.name);
-  const cold=list.filter(s=>s.feel==="cold").sort((a,b)=>seatTemp(a.i)-seatTemp(b.i));
-  const hot=list.filter(s=>s.feel==="hot").sort((a,b)=>seatTemp(b.i)-seatTemp(a.i));
-  const out=[];
-  for(let k=0;k<Math.min(cold.length,hot.length);k++){
-    const c=cold[k],h=hot[k],g=seatTemp(h.i)-seatTemp(c.i);
-    if(g>=0.5) out.push({c,h,gain:g});
-  }
-  return out;
+function seatTemp(i){
+const S=SEASON[state.season], r=Math.floor(i/COLS), c=i%COLS;
+const dx=(c-2.5)/2.5, dy=(r-1.5)/1.5, d=Math.min(1,Math.hypot(dx,dy)/1.2);
+return state.setTemp + S.center*(1-d) + (S.acEffect<0?0.6:-0.6)*d + S.win[c];
+}
+function zoneBg(i){const d=seatTemp(i)-state.setTemp;return d<=-0.6?"var(--cold-soft)":d>=0.6?"var(--hot-soft)":"var(--bg)";}
+const feelOf=n=>n?(state.feels||{})[n]||null:null;
+const swapped=()=>state.names.some((n,i)=>n!==state.base[i]);
+
+// ===== 서버 쓰기 =====
+// 새 시간이 됐으면 원래 자리로 (여러 폰이 동시에 해도 한 번만 되게 트랜잭션)
+async function resetIfNewHour(force){
+try{
+await runTransaction(db, async tx=>{
+const s=(await tx.get(ref)).data();
+if(!s) return;
+if(!force && s.slot===slotKey()) return;
+tx.update(ref,{names:s.base,feels:{},slot:slotKey()});
+});
+}catch(e){fail(e);}
+}
+async function setFeel(f){
+if(!myName) return;
+try{await updateDoc(ref,new FieldPath("feels",myName),f);}catch(e){fail(e);}
+}
+async function swap(cName,hName){
+try{
+await runTransaction(db, async tx=>{
+const s=(await tx.get(ref)).data();
+const names=s.names.slice(), a=names.indexOf(cName), b=names.indexOf(hName);
+if(a<0||b<0) throw new Error("자리 정보가 바뀌었어요");
+names[a]=hName; names[b]=cName;
+const feels={...(s.feels||{})}; feels[cName]="ok"; feels[hName]="ok";
+tx.update(ref,{names,feels});
+});
+toast(`${cName}·${hName} 자리를 바꿨어요 (이번 시간만)`);
+}catch(e){fail(e);}
+}
+async function applyTemp(next){
+try{await updateDoc(ref,{setTemp:next,feels:{}});toast(`설정 온도를 ${next}°로 바꿨어요. 다시 눌러주세요`);}catch(e){fail(e);}
+}
+async function setSeason(s){
+if(state.season===s) return;
+try{await updateDoc(ref,{season:s,setTemp:SEASON[s].temp,feels:{}});}catch(e){fail(e);}
+}
+async function saveBase(names){
+try{await updateDoc(ref,{base:names,names:names,feels:{},slot:slotKey()});toast("원래 자리를 저장했어요");}catch(e){fail(e);}
 }
 
-function seatHTML(s,i){
-  if(editing) return `<div class="seat" style="background:${zoneBg(i)}"><input id="nm${i}" value="${esc(s.name)}" maxlength="6" aria-label="${i+1}번 자리 이름" placeholder="빈"></div>`;
-  return `<button class="seat${i===me?" me":""}${s.name?"":" empty"}" data-i="${i}" style="background:${zoneBg(i)}" aria-label="${s.name||"빈 자리"}, 체감 ${fmt(seatTemp(i))}">
-    <span class="n">${s.name?esc(s.name):"빈 자리"}</span><span class="t">${fmt(seatTemp(i))}</span>
-    <span class="f ${s.feel||""}">${s.feel?feelTxt[s.feel]:""}</span></button>`;
+// ===== 화면 그리기 =====
+function pairs(){
+const list=state.names.map((n,i)=>({name:n,i,feel:feelOf(n)})).filter(s=>s.name);
+const cold=list.filter(s=>s.feel==="cold").sort((a,b)=>seatTemp(a.i)-seatTemp(b.i));
+const hot=list.filter(s=>s.feel==="hot").sort((a,b)=>seatTemp(b.i)-seatTemp(a.i));
+const out=[];
+for(let k=0;k<Math.min(cold.length,hot.length);k++){
+const c=cold[k],h=hot[k];
+if(seatTemp(h.i)-seatTemp(c.i)>=0.5) out.push({c,h});
+}
+return out;
+}
+
+function seatHTML(i){
+if(editing) return `<div class="seat" style="background:${zoneBg(i)}"><input id="nm${i}" value="${esc(draft[i])}" maxlength="6" aria-label="${i+1}번 자리 이름" placeholder="빈"></div>`;
+const n=state.names[i], f=feelOf(n);
+return `<button class="seat${n&&n===myName?" me":""}${n?"":" empty"}" data-i="${i}" style="background:${zoneBg(i)}" aria-label="${n?esc(n):"빈 자리"}">
+<span class="n">${n?esc(n):"빈 자리"}</span>
+<span class="f ${f||""}">${f?feelTxt[f]:""}</span></button>`;
 }
 
 function render(){
-  const S=SEASON[season];
-  $("setTemp").textContent=setTemp+"°";
-  $("range").textContent=`조절 가능 범위 ${S.min}°~${S.max}°`;
-  $("acTag").textContent=S.ac;
-  $("sSummer").setAttribute("aria-pressed",season==="summer");
-  $("sWinter").setAttribute("aria-pressed",season==="winter");
-  $("editBtn").hidden=editing; $("bulk").hidden=!editing;
-  $("mapSub").textContent=editing?"자리 칸에 이름을 입력하세요.":"내 자리를 눌러 선택하세요.";
+if(!state) return;
+const S=SEASON[state.season];
+$("setTemp").textContent=state.setTemp+"°";
+$("range").textContent=`조절 가능 범위 ${S.min}°~${S.max}°`;
+$("acTag").textContent=S.ac;
+$("sSummer").setAttribute("aria-pressed",state.season==="summer");
+$("sWinter").setAttribute("aria-pressed",state.season==="winter");
+$("editBtn").hidden=editing; $("bulk").hidden=!editing;
+$("mapSub").textContent=editing?"자리 칸에 이름을 입력하고 완료를 누르세요.":"내 이름이 있는 자리를 눌러 선택하세요. 색은 에어컨·창문 위치로 본 대략적인 구역이에요.";
 
-  let html="";
-  seats.forEach((s,i)=>{const c=i%COLS; html+=seatHTML(s,i); if(c===1||c===3) html+=`<div class="aisle"></div>`;});
-  $("seats").innerHTML=html;
-  if(editing) seats.forEach((s,i)=>{$("nm"+i).oninput=e=>{seats[i].name=e.target.value.trim();if(!seats[i].name)seats[i].feel=null;saveNames();};});
+// 이름 입력 중에는 칸을 다시 그리지 않음 (입력하던 글자가 날아가지 않게)
+if(!(editing && $("nm0"))){
+let html="";
+for(let i=0;i<N;i++){html+=seatHTML(i); const c=i%COLS; if(c===1||c===3) html+=`<div class="aisle"></div>`;}
+$("seats").innerHTML=html;
+if(editing) for(let i=0;i<N;i++) $("nm"+i).oninput=e=>{draft[i]=e.target.value.trim();};
+}
 
-  const m=seats[me];
-  $("meLine").innerHTML=m&&m.name?`<b>${esc(m.name)}</b> 자리 선택됨 · 체감 ${fmt(seatTemp(me))} · 지금 상태: ${m.feel?feelTxt[m.feel]:"아직 안 누름"}`:"빈 자리예요. 이름이 있는 자리를 눌러주세요.";
-  ["fCold","fOk","fHot"].forEach(id=>$(id).disabled=editing||!(m&&m.name));
+const nh=(new Date().getHours()+1)%24;
+$("swapStatus").textContent=swapped()?`자리를 바꾼 상태예요. ${nh}시 정각에 원래 자리로 돌아가요.`:"지금은 원래 자리예요. 바꾼 자리는 이번 시간에만 유지돼요.";
+$("resetBtn").disabled=editing||!swapped();
 
-  const p=pairs();
-  $("pairs").innerHTML=p.length?p.map((x,k)=>`<div class="pair"><p>🥶 <b>${esc(x.c.name)}</b> ↔ 🥵 <b>${esc(x.h.name)}</b><br><span class="note">${esc(x.c.name)}는 ${fmt(seatTemp(x.h.i))} 자리로, ${esc(x.h.name)}는 ${fmt(seatTemp(x.c.i))} 자리로 (차이 ${x.gain.toFixed(1)}°)</span></p><button class="btn" data-k="${k}">교환하기</button></div>`).join("")
-    :`<p class="empty-msg">지금은 바꿔서 둘 다 좋아지는 짝이 없어요.</p>`;
-  document.querySelectorAll("#pairs .btn").forEach(b=>b.onclick=()=>{
-    const x=p[+b.dataset.k], a=seats[x.c.i], h=seats[x.h.i];
-    seats[x.c.i]={name:h.name,feel:"ok"}; seats[x.h.i]={name:a.name,feel:"ok"};
-    if(me===x.c.i) me=x.h.i; else if(me===x.h.i) me=x.c.i;
-    saveNames(); toast(`${a.name}·${h.name} 자리를 바꿨어요`); render();
-  });
+const mine=myName&&state.names.includes(myName);
+const mf=feelOf(myName);
+$("meLine").innerHTML=mine?`나: <b>${esc(myName)}</b> · 지금 상태: ${mf?feelTxt[mf]:"아직 안 누름"}`:"먼저 지도에서 내 이름이 있는 자리를 눌러주세요.";
+["fCold","fOk","fHot"].forEach(id=>$(id).disabled=editing||!mine);
 
-  const named=seats.filter(s=>s.name);
-  const c=named.filter(s=>s.feel==="cold").length,o=named.filter(s=>s.feel==="ok").length,h=named.filter(s=>s.feel==="hot").length,tot=c+o+h||1;
-  $("barC").style.width=c/tot*100+"%";$("barO").style.width=o/tot*100+"%";$("barH").style.width=h/tot*100+"%";
-  $("cC").textContent=`추워요 ${c}`;$("cO").textContent=`괜찮아요 ${o}`;$("cH").textContent=`더워요 ${h}`;
-  const r=decide(c,h);
-  $("result").innerHTML=r.msg; $("apply").disabled=r.next===setTemp; $("apply").dataset.next=r.next;
+const p=pairs();
+$("pairs").innerHTML=p.length?p.map((x,k)=>`<div class="pair"><p>🥶 <b>${esc(x.c.name)}</b> ↔ 🥵 <b>${esc(x.h.name)}</b><br><span class="note">${esc(x.c.name)}는 더 따뜻한 자리로, ${esc(x.h.name)}는 더 시원한 자리로</span></p><button class="btn" data-k="${k}">교환하기</button></div>`).join("")
+:`<p class="empty-msg">지금은 바꿔서 둘 다 좋아지는 짝이 없어요.</p>`;
+document.querySelectorAll("#pairs .btn").forEach(b=>b.onclick=()=>{const x=p[+b.dataset.k];swap(x.c.name,x.h.name);});
+
+const fs=state.names.filter(Boolean).map(feelOf);
+const c=fs.filter(f=>f==="cold").length,o=fs.filter(f=>f==="ok").length,h=fs.filter(f=>f==="hot").length,tot=c+o+h||1;
+$("barC").style.width=c/tot*100+"%";$("barO").style.width=o/tot*100+"%";$("barH").style.width=h/tot*100+"%";
+$("cC").textContent=`추워요 ${c}`;$("cO").textContent=`괜찮아요 ${o}`;$("cH").textContent=`더워요 ${h}`;
+const r=decide(c,h);
+$("result").innerHTML=r.msg; $("apply").disabled=editing||r.next===state.setTemp; $("apply").dataset.next=r.next;
 }
 
 function decide(c,h){
-  const S=SEASON[season];
-  if(h-c>=3){ if(setTemp<=S.min) return {next:setTemp,msg:`더운 친구가 많지만 이미 최저 ${S.min}°예요. 자리 교환이나 옷차림 조절을 먼저 해봐요.`};
-    return {next:setTemp-1,msg:`더워요가 ${h-c}표 많아요 → <b>${setTemp-1}°</b>로 낮추기 추천`};}
-  if(c-h>=3){ if(setTemp>=S.max) return {next:setTemp,msg:`추운 친구가 많지만 이미 최고 ${S.max}°예요. 자리 교환이나 옷차림 조절을 먼저 해봐요.`};
-    return {next:setTemp+1,msg:`추워요가 ${c-h}표 많아요 → <b>${setTemp+1}°</b>로 올리기 추천`};}
-  return {next:setTemp,msg:`의견 차이가 작아요 → <b>${setTemp}° 유지</b>`};
+const S=SEASON[state.season], t=state.setTemp;
+if(h-c>=3){ if(t<=S.min) return {next:t,msg:`더운 친구가 많지만 이미 최저 ${S.min}°예요. 자리 교환이나 옷차림 조절을 먼저 해봐요.`};
+return {next:t-1,msg:`더워요가 ${h-c}표 많아요 → <b>${t-1}°</b>로 낮추기 추천`};}
+if(c-h>=3){ if(t>=S.max) return {next:t,msg:`추운 친구가 많지만 이미 최고 ${S.max}°예요. 자리 교환이나 옷차림 조절을 먼저 해봐요.`};
+return {next:t+1,msg:`추워요가 ${c-h}표 많아요 → <b>${t+1}°</b>로 올리기 추천`};}
+return {next:t,msg:`의견 차이가 작아요 → <b>${t}° 유지</b>`};
 }
 
-$("seats").addEventListener("click",e=>{if(editing)return;const b=e.target.closest(".seat");if(!b)return;me=+b.dataset.i;render();});
-const setFeel=f=>()=>{if(!seats[me].name)return;seats[me].feel=f;render();};
-$("fCold").onclick=setFeel("cold");$("fOk").onclick=setFeel("ok");$("fHot").onclick=setFeel("hot");
-$("apply").onclick=()=>{setTemp=+$("apply").dataset.next;seats.forEach(s=>s.feel=null);toast(`설정 온도를 ${setTemp}°로 바꿨어요. 다시 투표해 주세요`);render();};
-const setSeason=s=>()=>{season=s;setTemp=SEASON[s].temp;render();};
-$("sSummer").onclick=setSeason("summer");$("sWinter").onclick=setSeason("winter");
-$("editBtn").onclick=()=>{editing=true;$("bulkText").value=seats.map(s=>s.name).join(", ");render();};
-$("editDone").onclick=()=>{editing=false;saveNames();toast("이름을 저장했어요");render();};
-$("bulkApply").onclick=()=>{
-  const arr=$("bulkText").value.split(/[,\n]/).map(s=>s.trim());
-  for(let i=0;i<N;i++){const n=(arr[i]||"").slice(0,6); if(seats[i].name!==n) seats[i]={name:n,feel:null};}
-  saveNames(); toast("명단을 자리에 넣었어요"); render();
-};
-$("clearNames").onclick=()=>{seats=seats.map(()=>({name:"",feel:null}));$("bulkText").value="";saveNames();render();};
+// ===== 버튼 =====
+$("seats").addEventListener("click",e=>{
+if(editing||!state) return;
+const b=e.target.closest(".seat"); if(!b) return;
+const n=state.names[+b.dataset.i]; if(!n) return;
+myName=n; try{localStorage.setItem("ondo-me",n);}catch(e){}
 render();
+});
+$("fCold").onclick=()=>setFeel("cold");$("fOk").onclick=()=>setFeel("ok");$("fHot").onclick=()=>setFeel("hot");
+$("apply").onclick=()=>applyTemp(+$("apply").dataset.next);
+$("sSummer").onclick=()=>setSeason("summer");$("sWinter").onclick=()=>setSeason("winter");
+$("resetBtn").onclick=()=>{resetIfNewHour(true);toast("원래 자리로 돌려놨어요");};
+$("editBtn").onclick=()=>{editing=true;draft=state.base.slice();$("bulkText").value=draft.join(", ");$("seats").innerHTML="";render();};
+$("editDone").onclick=()=>{editing=false;saveBase(draft.slice());$("seats").innerHTML="";render();};
+$("bulkApply").onclick=()=>{
+const arr=$("bulkText").value.split(/[,\n]/).map(s=>s.trim());
+draft=Array.from({length:N},(_,i)=>(arr[i]||"").slice(0,6));
+$("seats").innerHTML=""; render(); toast("명단을 넣었어요. 완료를 눌러야 저장돼요");
+};
+$("clearNames").onclick=()=>{draft=Array(N).fill("");$("bulkText").value="";$("seats").innerHTML="";render();};
+
+// ===== 실시간 연결 =====
+onSnapshot(ref, snap=>{
+if(!snap.exists()){
+// 처음 한 번: 기본 데이터 만들기
+setDoc(ref,{base:DEFAULT_NAMES,names:DEFAULT_NAMES,feels:{},slot:slotKey(),season:"summer",setTemp:SEASON.summer.temp}).catch(fail);
+return;
+}
+state=snap.data();
+$("conn").textContent="실시간 연결됨 · 반 친구들이 누른 게 바로 보여요";
+if(state.slot!==slotKey()) resetIfNewHour(false);
+render();
+}, e=>{
+console.error(e);
+$("conn").textContent="서버에 연결하지 못했어요. Firestore 보안 규칙(테스트 모드 기간)을 확인해 주세요.";
+});
+setInterval(()=>{if(state&&state.slot!==slotKey()) resetIfNewHour(false); else render();},30000);
 </script>
 </body>
 </html>
