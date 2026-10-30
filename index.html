@@ -60,10 +60,11 @@ display:flex;flex-direction:column;align-items:center;gap:0;min-width:0}
 .log li{display:flex;gap:10px;font-size:13px;padding:8px 10px;border-radius:8px;background:var(--bg);flex-wrap:wrap}
 .log time{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 .log span{min-width:0;flex:1}
-/* 처음 들어왔을 때 뜨는 등록 창 */
-.ob{position:fixed;inset:0;z-index:20;background:rgba(10,16,22,.55);display:flex;align-items:center;justify-content:center;
-padding:calc(16px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
-.ob-card{background:var(--card);color:var(--fg);border-radius:16px;padding:20px;width:100%;max-width:440px;max-height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:12px}
+/* 처음 들어왔을 때 나오는 화면 1(이름), 화면 2(자리). 메인 화면을 완전히 가림 */
+.ob{position:fixed;inset:0;z-index:20;background:var(--bg);overflow-y:auto;display:flex;flex-direction:column;align-items:center;gap:16px;
+padding:calc(32px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(32px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.ob-head{width:100%;max-width:440px;display:flex;flex-direction:column;gap:4px}
+.ob-card{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:16px;padding:20px;width:100%;max-width:440px;display:flex;flex-direction:column;gap:12px}
 #obName{font:inherit;font-size:18px;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--fg);width:100%}
 #obName:focus-visible{outline:2px solid var(--cold);outline-offset:1px}
 .ob-map{display:flex;flex-direction:column;gap:6px}
@@ -191,9 +192,13 @@ textarea{width:100%;font:inherit;font-size:14px;border:1px solid var(--line);bor
 <p class="note">온도는 선생님이 정한 범위 안에서만 바뀌어요. 한쪽 의견이 3표 이상 많을 때만 1도씩 조절해요.</p>
 </section>
 </div>
-<p class="note" style="text-align:center;margin-top:16px">버전 1.5.1</p>
+<p class="note" style="text-align:center;margin-top:16px">버전 1.6.0</p>
 
 <div class="ob" id="ob" hidden>
+<div class="ob-head">
+<h1>우리반 온도 맞춤</h1>
+<p class="sub" style="margin:0">처음 한 번만 이름과 자리를 등록하면 돼요.</p>
+</div>
 <div class="ob-card" role="dialog" aria-modal="true" aria-labelledby="obTitle">
 <span class="label" id="obStep">1 / 2</span>
 <h2 id="obTitle">이름을 입력하세요</h2>
@@ -251,7 +256,8 @@ const slotKey=()=>{const d=new Date();return d.toDateString()+" "+d.getHours();}
 let state=null, editing=false, draft=[], picking=false, pickA=null;
 // claims: {이름: uid} → 한 이름은 한 폰만, 한 폰은 한 이름만 등록 가능
 let myName="";
-let obName="", obSeat=null, obDismissed=false; // 등록 창 상태
+let obName="", obSeat=null, obDismissed=false; // 등록 화면 상태
+let wasReg=false; try{wasReg=localStorage.getItem("ondo-reg")==="1";}catch(e){} // 이 폰이 전에 등록했는지 기억
 function claimedName(){
 if(!state||!uid) return "";
 const c=state.claims||{};
@@ -436,9 +442,13 @@ $("obTitle").textContent=step===1?"이름을 입력하세요":`${obName}님, 내
 $("obErr1").textContent=""; $("obErr2").textContent="";
 }
 function showOb(){
-const show=!!(state&&uid&&!myName&&!obDismissed&&!editing);
+const ready=!!(state&&uid);
+if(ready){ wasReg=!!myName; try{ myName?localStorage.setItem("ondo-reg","1"):localStorage.removeItem("ondo-reg"); }catch(e){} }
+// 서버 연결 전에도 등록 안 한 폰이면 바로 화면 1을 보여줌 (등록한 폰은 바로 메인 화면)
+const show=!obDismissed&&!editing&&(ready?!myName:!wasReg);
 const wasHidden=$("ob").hidden;
 $("ob").hidden=!show;
+document.documentElement.style.overflow=show?"hidden":"";
 if(!show) return;
 if(wasHidden&&!$("ob1").hidden) setTimeout(()=>$("obName").focus(),50);
 if($("ob2").hidden) return;
@@ -523,6 +533,7 @@ $("clearClaims").onclick=()=>clearClaims();
 $("obNext").onclick=()=>{
 const n=$("obName").value.trim();
 if(!n){$("obErr1").textContent="이름을 입력해 주세요";return;}
+if(!state||!uid){$("obErr1").textContent="서버에 연결하는 중이에요. 잠깐 뒤에 다시 눌러주세요";return;}
 if((state.claims||{})[n]){$("obErr1").textContent="이미 등록된 이름이에요. 같은 이름이 있으면 뒤에 숫자를 붙여주세요 (예: 민준2)";return;}
 obName=n;
 const k=state.base.indexOf(n); obSeat=k>=0?k:null; // 명단에 이미 내 이름이 있으면 그 자리를 미리 골라둠
@@ -535,8 +546,9 @@ obSeat=+b.dataset.i; $("obErr2").textContent=""; render();
 });
 $("obBack").onclick=()=>{obSeat=null;obGo(1);render();setTimeout(()=>$("obName").focus(),50);};
 $("obStart").onclick=()=>{if(obSeat!==null){$("obStart").disabled=true;register(obName,obSeat);}};
-$("obLater").onclick=()=>{obDismissed=true;render();};
-document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("ob").hidden){obDismissed=true;render();}});
+$("obLater").onclick=()=>{obDismissed=true;showOb();render();};
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("ob").hidden){obDismissed=true;showOb();render();}});
+showOb(); // 페이지 열리자마자 화면 1
 </script>
 </body>
 </html>
